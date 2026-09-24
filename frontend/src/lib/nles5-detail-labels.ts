@@ -63,9 +63,9 @@ export const NTHETA_COEFFICIENTS = {
   budb: 0.016314,
   bm1M: 0.026499,
   bf0: 0.038245,
-  bf1: 0.025499,
+  bf1: 0.0265,
   bg0: 0.014099,
-  bm1G: 0.026499,
+  bg1: 0.0265,
   theta2: 1.205144,
 }
 

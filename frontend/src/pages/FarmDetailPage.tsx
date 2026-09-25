@@ -29,6 +29,7 @@ import { FarmSidebar } from '@/components/farm/FarmSidebar'
 import { NewScenarioPanel } from '@/components/farm/NewScenarioPanel'
 import { useSidebarWidth } from '@/components/farm/sidebar-width'
 import { useSimulationActions } from '@/components/farm/simulation-actions'
+import { SimulationComparison } from '@/components/farm/SimulationComparison'
 import { SimulationOverview } from '@/components/farm/SimulationOverview'
 import {
   resolveEffectiveView,
@@ -63,7 +64,7 @@ const isSameSelection = (left: FarmViewSelection, right: FarmViewSelection) =>
 export const FarmDetailPage = () => {
   const { farmId } = useParams()
   const navigate = useNavigate()
-  const onOverview = useMatch('/farms/:farmId/simulations') !== null
+  const onOverview = useMatch('/farms/:farmId/simulations/*') !== null
   const farmPath = `/farms/${farmId}`
   const { user } = useAuth()
   const email = user?.email ?? ''
@@ -412,6 +413,16 @@ export const FarmDetailPage = () => {
                   }
                   onDeleteSimulation={setSimulationToDelete}
                   onNewSimulation={() => setNewSimulationOpen(true)}
+                />
+              }
+            />
+            <Route
+              path="simulations/compare"
+              element={
+                <SimulationComparison
+                  farmId={loadedFarm.id}
+                  fields={fields}
+                  simulations={simulations}
                 />
               }
             />

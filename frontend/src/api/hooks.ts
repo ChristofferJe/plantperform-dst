@@ -1,4 +1,5 @@
-import useSWR, { mutate, preload } from 'swr'
+import { useEffect, useId } from 'react'
+import useSWR, { mutate, preload, useSWRConfig, type Cache } from 'swr'
 
 import { fetcher } from '@/api/client'
 import { createRequestQueue } from '@/api/request-queue'
@@ -114,6 +115,67 @@ export const fetchSimulationFields = async (
     revalidate: false,
   })
   return fields ?? []
+}
+
+export type FieldsBySimulationId = Record<string, FieldRecord[]>
+
+const SIMULATIONS_FIELDS_KEY = 'simulations-fields'
+
+export const isSimulationsFieldsKey = (
+  key: unknown,
+  farmId: string,
+): key is unknown[] =>
+  Array.isArray(key) && key[0] === SIMULATIONS_FIELDS_KEY && key[1] === farmId
+
+const cachedSimulationFields = (
+  cache: Cache,
+  farmId: string,
+  simulationId: string,
+): FieldRecord[] | undefined => {
+  const key = simulationFieldsKey(farmId, simulationId)
+  return key ? cache.get(key)?.data : undefined
+}
+
+const fetchSimulationsFields = async (
+  cache: Cache,
+  farmId: string,
+  simulationIds: string[],
+): Promise<FieldsBySimulationId> => {
+  const entries = await Promise.all(
+    simulationIds.map(
+      async (simulationId) =>
+        [
+          simulationId,
+          cachedSimulationFields(cache, farmId, simulationId) ??
+            (await fetchSimulationFields(farmId, simulationId)),
+        ] as const,
+    ),
+  )
+  return Object.fromEntries(entries)
+}
+
+export const useSimulationsFields = (
+  farmId: string | undefined,
+  simulations: Simulation[],
+) => {
+  const { cache } = useSWRConfig()
+  const visitId = useId()
+  const simulationIds = simulations.map((simulation) => simulation.id).sort()
+  useEffect(() => {
+    if (!farmId) return
+    void mutate(
+      (key) => isSimulationsFieldsKey(key, farmId) && key[3] !== visitId,
+      undefined,
+      { revalidate: false },
+    )
+  }, [farmId, visitId])
+  return useSWR<FieldsBySimulationId>(
+    farmId && simulationIds.length > 0
+      ? [SIMULATIONS_FIELDS_KEY, farmId, simulationIds.join(','), visitId]
+      : null,
+    ([, keyFarmId, joinedIds]: string[]) =>
+      fetchSimulationsFields(cache, keyFarmId, joinedIds.split(',')),
+  )
 }
 
 export const scenarioCropCodesKey = (

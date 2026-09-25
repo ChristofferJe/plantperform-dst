@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react'
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 
 import type { FieldRecord, Simulation } from '@/api/types'
 import { HistoryCard, SimulationCard } from '@/components/farm/SimulationCard'
@@ -52,10 +53,19 @@ export const SimulationOverview = ({
               pr. år, og under dem står forskellen til afgrødehistorikken.
             </p>
           </div>
-          <Button onClick={onNewSimulation}>
-            <Plus aria-hidden="true" />
-            Ny simulering
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {simulations.length > 0 ? (
+              <Button variant="outline" asChild>
+                <Link to={`/farms/${farmId}/simulations/compare`}>
+                  Sammenlign
+                </Link>
+              </Button>
+            ) : null}
+            <Button onClick={onNewSimulation}>
+              <Plus aria-hidden="true" />
+              Ny simulering
+            </Button>
+          </div>
         </header>
         <div className="grid gap-4 @3xl:grid-cols-2">
           <HistoryCard

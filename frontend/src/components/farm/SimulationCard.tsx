@@ -1,5 +1,6 @@
 import { Copy, Trash2 } from 'lucide-react'
 import { useMemo, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 
 import { useFieldYearValues, useSimulationFields } from '@/api/hooks'
 import { useOptimizationRun } from '@/api/optimization-runs'
@@ -26,6 +27,7 @@ import {
   type FarmQuota,
   type FieldTotals,
 } from '@/lib/field-domain'
+import { comparisonAvailability } from '@/lib/simulation-comparison'
 import {
   describeDb2Delta,
   describeFieldChanges,
@@ -383,6 +385,8 @@ export const SimulationCard = ({
     }
   }, [fields, liveFields])
   const calculated = summary !== undefined && summary.totals.calculatedCount > 0
+  const canCompare =
+    fields !== undefined && comparisonAvailability(fields).kind === 'ready'
 
   return (
     <CardShell
@@ -408,6 +412,16 @@ export const SimulationCard = ({
           >
             Åbn
           </Button>
+          {canCompare ? (
+            <Button size="xs" variant="outline" asChild>
+              <Link
+                to={`/farms/${farmId}/simulations/compare?ids=${encodeURIComponent(simulation.id)}`}
+                aria-label={`Sammenlign ${simulation.name}`}
+              >
+                Sammenlign
+              </Link>
+            </Button>
+          ) : null}
           <Button
             size="xs"
             variant="outline"

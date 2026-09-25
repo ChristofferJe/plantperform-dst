@@ -59,26 +59,43 @@ const DropdownMenuItem = ({
   />
 )
 
+type DropdownMenuCheckboxItemProps = React.ComponentProps<
+  typeof DropdownMenuPrimitive.CheckboxItem
+> & {
+  indicator?: 'check' | 'box'
+}
+
 const DropdownMenuCheckboxItem = ({
   className,
   children,
   checked,
+  indicator = 'check',
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) => (
+}: DropdownMenuCheckboxItemProps) => (
   <DropdownMenuPrimitive.CheckboxItem
     checked={checked}
     className={cn(
-      'relative flex cursor-pointer select-none items-center gap-2 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none data-[disabled]:pointer-events-none hover:bg-muted focus:bg-muted data-[disabled]:opacity-50',
+      'group relative flex cursor-pointer select-none items-center gap-2 rounded-sm py-1.5 text-sm outline-none data-[disabled]:pointer-events-none hover:bg-muted focus:bg-muted data-[disabled]:opacity-50',
+      indicator === 'check' ? 'pl-8 pr-2' : 'px-2',
       className,
     )}
     {...props}
   >
-    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
-      <DropdownMenuPrimitive.ItemIndicator>
-        <Check className="h-4 w-4" aria-hidden="true" />
-      </DropdownMenuPrimitive.ItemIndicator>
-    </span>
+    {indicator === 'check' ? (
+      <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Check className="h-4 w-4" aria-hidden="true" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+    ) : null}
     {children}
+    {indicator === 'box' ? (
+      <span className="ml-auto flex size-4 shrink-0 items-center justify-center rounded-[4px] border border-muted-foreground group-data-[state=checked]:border-primary group-data-[state=checked]:bg-primary group-data-[state=checked]:text-primary-foreground">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <Check className="size-3.5" aria-hidden="true" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+    ) : null}
   </DropdownMenuPrimitive.CheckboxItem>
 )
 

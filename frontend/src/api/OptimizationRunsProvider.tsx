@@ -2,7 +2,11 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import { mutate } from 'swr'
 
 import { ApiError, fetcher } from '@/api/client'
-import { simulationFieldsKey, simulationYearlySummaryKey } from '@/api/hooks'
+import {
+  isSimulationsFieldsKey,
+  simulationFieldsKey,
+  simulationYearlySummaryKey,
+} from '@/api/hooks'
 import {
   runSimulationOptimization,
   runYearlySimulationOptimization,
@@ -90,6 +94,7 @@ export const OptimizationRunsProvider = ({
             revalidate: false,
           })
           void mutate(simulationFieldsKey(farmId, simulationId))
+          void mutate((key) => isSimulationsFieldsKey(key, farmId))
           const succeeded: OptimizationRun = {
             ...running,
             status: 'succeeded',

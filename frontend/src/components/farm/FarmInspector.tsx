@@ -12,7 +12,6 @@ import {
 } from '@/api/hooks'
 import { updateSimulationField } from '@/api/mutations'
 import {
-  DEFAULT_TIME_LIMIT_SECONDS,
   useOptimizationRun,
   useOptimizationRunActions,
 } from '@/api/optimization-runs'
@@ -762,9 +761,6 @@ const OptimizeDialog = ({
     'optimize',
     open,
   )
-  const [timeLimitSeconds, setTimeLimitSeconds] = useState(
-    DEFAULT_TIME_LIMIT_SECONDS.optimize,
-  )
   const [excludedCropCodes, setExcludedCropCodes] = useState<Set<number>>(
     new Set(),
   )
@@ -802,7 +798,6 @@ const OptimizeDialog = ({
       farmId,
       simulationId: simulation.id,
       input: {
-        timeLimitSeconds,
         excludedCropCodes: Array.from(excludedCropCodes),
       },
       fieldsBefore: fields,
@@ -873,24 +868,6 @@ const OptimizeDialog = ({
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="optimize-time-limit">Tidsgrænse</Label>
-                <Input
-                  id="optimize-time-limit"
-                  type="number"
-                  min="1"
-                  max="600"
-                  value={timeLimitSeconds}
-                  onChange={(event) =>
-                    setTimeLimitSeconds(Number(event.target.value))
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  sekunder - sæt højere hvis optimeringen ikke når at finde en
-                  løsning i tide på en stor bedrift
-                </p>
-              </div>
-
               <CropExclusionList
                 farmId={farmId}
                 simulationId={simulation.id}
@@ -945,9 +922,6 @@ const YearlyOptimizeDialog = ({
     simulation.id,
     'yearly',
     open,
-  )
-  const [timeLimitSeconds, setTimeLimitSeconds] = useState(
-    DEFAULT_TIME_LIMIT_SECONDS.yearly,
   )
   const [catchmentInputs, setCatchmentInputs] = useState<
     Record<string, CatchmentYearlyInput>
@@ -1040,7 +1014,6 @@ const YearlyOptimizeDialog = ({
       farmId,
       simulationId: simulation.id,
       input: {
-        timeLimitSeconds,
         maxNLoadByCatchment,
         db2SwingPct: trimmedSwing === '' ? null : Number(trimmedSwing),
         excludedCropCodes: Array.from(excludedCropCodes),
@@ -1079,21 +1052,6 @@ const YearlyOptimizeDialog = ({
             </div>
 
             <div className="space-y-5">
-              <div className="space-y-2">
-                <Label htmlFor="yearly-time-limit">Tidsgrænse</Label>
-                <Input
-                  id="yearly-time-limit"
-                  type="number"
-                  min="1"
-                  max="600"
-                  value={timeLimitSeconds}
-                  onChange={(event) =>
-                    setTimeLimitSeconds(Number(event.target.value))
-                  }
-                />
-                <p className="text-xs text-muted-foreground">sekunder</p>
-              </div>
-
               <div className="space-y-3">
                 <Label>Maks. tilladt udledning pr. år, pr. kystvandopland</Label>
                 {catchments.length === 0 ? (

@@ -153,11 +153,8 @@ const compactMillionFormat = new Intl.NumberFormat('da-DK', {
   maximumFractionDigits: 1,
 })
 
-export const formatCompactDkk = (
-  value: number,
-  unitOf: number = value,
-): string => {
-  const magnitude = Math.max(Math.abs(value), Math.abs(unitOf))
+export const formatCompactDkk = (value: number): string => {
+  const magnitude = Math.abs(value)
   if (magnitude >= 999_500) {
     return `${compactMillionFormat.format(value / 1_000_000)} mio. kr`
   }
@@ -168,8 +165,11 @@ export const formatCompactDkk = (
 export const formatSigned = (
   value: number,
   format: (value: number) => string,
-): string =>
-  `${value > 0 ? '+' : value < 0 ? '−' : '±'}${format(Math.abs(value))}`
+): string => {
+  const magnitude = format(Math.abs(value))
+  if (magnitude === format(0)) return `±${magnitude}`
+  return `${value > 0 ? '+' : '−'}${magnitude}`
+}
 
 export const formatLockTooltip = (field: FieldRecord): string => {
   const lines = [`${field.name} - låst sædskifte`]

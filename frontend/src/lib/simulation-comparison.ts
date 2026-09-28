@@ -5,8 +5,8 @@ import type {
   Simulation,
 } from '@/api/types'
 import {
-  formatCompactDkk,
   formatFieldCount,
+  formatPerHa,
   formatSigned,
   formatWholeNumber,
   groupFieldsByCatchment,
@@ -313,12 +313,12 @@ export const summarizeColumnQuota = (
 }
 
 export type BalanceCandidate = {
-  db2: number | null
+  db2PerHa: number | null
   yearsOver: number | null
 }
 
 const db2ForRanking = (candidate: BalanceCandidate): number =>
-  candidate.db2 ?? Number.MIN_SAFE_INTEGER
+  candidate.db2PerHa ?? Number.MIN_SAFE_INTEGER
 
 export const rankByBalance = <T extends BalanceCandidate>(
   candidates: T[],
@@ -342,7 +342,7 @@ export const COMPARISON_SORT_LABELS: Record<ComparisonSort, string> = {
   yearsOver: 'år over kvoten',
 }
 
-export type SortCandidate = BalanceCandidate & { nLoad: number | null }
+export type SortCandidate = BalanceCandidate & { nLoadPerHa: number | null }
 
 const nullsLast = (left: number | null, right: number | null): number =>
   Number(left === null) - Number(right === null)
@@ -355,53 +355,52 @@ export const sortComparison = <T extends SortCandidate>(
   if (sort === 'db2') {
     return ranked.sort(
       (left, right) =>
-        nullsLast(left.db2, right.db2) || (right.db2 ?? 0) - (left.db2 ?? 0),
+        nullsLast(left.db2PerHa, right.db2PerHa) ||
+        (right.db2PerHa ?? 0) - (left.db2PerHa ?? 0),
     )
   }
   if (sort === 'nLoad') {
     return ranked.sort(
       (left, right) =>
-        nullsLast(left.nLoad, right.nLoad) ||
-        (left.nLoad ?? 0) - (right.nLoad ?? 0),
+        nullsLast(left.nLoadPerHa, right.nLoadPerHa) ||
+        (left.nLoadPerHa ?? 0) - (right.nLoadPerHa ?? 0),
     )
   }
   return ranked
 }
-
-export const formatDkkDelta = (difference: number, unitOf: number): string =>
-  formatSigned(Math.round(difference), (value) =>
-    formatCompactDkk(value, unitOf),
-  )
 
 export const formatYears = (count: number): string => `${count} år`
 
 export const formatYearsDelta = (difference: number): string =>
   `${formatSigned(difference, String)} år`
 
-const describeDb2AgainstHistory = (db2: number, historyDb2: number): string => {
-  const difference = Math.round(db2 - historyDb2)
+const describeDb2AgainstHistory = (
+  db2PerHa: number,
+  historyDb2PerHa: number,
+): string => {
+  const difference = Math.round(db2PerHa - historyDb2PerHa)
   if (difference === 0) return 'samme dækningsbidrag som afgrødehistorikken'
-  return `${formatCompactDkk(Math.abs(difference), db2)} ${difference > 0 ? 'mere' : 'mindre'} end afgrødehistorikken`
+  return `${formatPerHa(Math.abs(difference), 'db2')} ${difference > 0 ? 'mere' : 'mindre'} end afgrødehistorikken`
 }
 
 export type ComparisonVerdictInput = {
-  best: { title: string; db2: number | null; yearsOver: number | null }
+  best: { title: string; db2PerHa: number | null; yearsOver: number | null }
   compliantCount: number
   simulationCount: number
-  historyDb2: number | null
+  historyDb2PerHa: number | null
 }
 
 export const describeComparisonVerdict = ({
   best,
   compliantCount,
   simulationCount,
-  historyDb2,
+  historyDb2PerHa,
 }: ComparisonVerdictInput): string | null => {
   if (best.yearsOver === null || simulationCount === 0) return null
   const db2 =
-    best.db2 === null || historyDb2 === null
+    best.db2PerHa === null || historyDb2PerHa === null
       ? null
-      : describeDb2AgainstHistory(best.db2, historyDb2)
+      : describeDb2AgainstHistory(best.db2PerHa, historyDb2PerHa)
   if (best.yearsOver > 0) {
     return simulationCount === 1
       ? `${best.title} holder ikke kvoten i alle år: ${formatYears(best.yearsOver)} over kvoten.`

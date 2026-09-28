@@ -75,8 +75,10 @@ import {
   formatQuotaAmount,
   formatWholeNumber,
   isFieldLocked,
+  perHaFigure,
   QUOTA_STATUS_STYLES,
   resolveFarmQuota,
+  totalsPerHa,
   type FarmQuota,
   type QuotaStatusLevel,
 } from '@/lib/field-domain'
@@ -110,17 +112,23 @@ const describeKeyFigures = (
     }
   }
 
-  const emission =
-    quotaKgN !== null && quotaKgN > 0
-      ? `${formatWholeNumber(totals.nLoad)} / ${formatWholeNumber(quotaKgN)} kg N`
-      : `${formatWholeNumber(totals.nLoad)} kg N`
+  const emission = perHaFigure(
+    totalsPerHa(totals, 'nLoad'),
+    'nLoad',
+    `${formatWholeNumber(totals.nLoad)} kg N`,
+  ).value
+  const earnings = perHaFigure(
+    totalsPerHa(totals, 'db2'),
+    'db2',
+    formatCompactDkk(totals.db2),
+  ).value
   const fullEmission = formatQuotaAmount(totals.nLoad, quotaKgN ?? 0)
   const quotaNote =
     quotaKgN === null ? `, ${describeSeparateQuotas(quota)}` : ''
 
   return {
     level,
-    label: `${emission} · ${formatCompactDkk(totals.db2)}`,
+    label: `${emission} · ${earnings}`,
     title: `Udledning ${fullEmission} pr. gennemsnitsår${quotaNote}, DB2 ${formatWholeNumber(totals.db2)} kr`,
   }
 }
@@ -244,6 +252,7 @@ export const FarmSidebar = ({
                       <div className="grid gap-0.5">
                         <span>Afgrødehistorik</span>
                         <span>{historyFigures.label}</span>
+                        <span>{historyFigures.title}</span>
                       </div>
                     ),
                   }}
@@ -659,6 +668,7 @@ const SimulationMenuItem = ({
                 <span>{simulation.name}</span>
                 <span>{createdLabel}</span>
                 {figures ? <span>{figures.label}</span> : null}
+                {figures ? <span>{figures.title}</span> : null}
                 {runningRun ? (
                   <span className="tabular-nums">
                     <OptimizationRunElapsed run={runningRun} />

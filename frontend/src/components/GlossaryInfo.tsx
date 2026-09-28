@@ -13,12 +13,12 @@ const glossary = {
   db2: {
     title: 'DB2',
     description:
-      'Dækningsbidrag 2: indtægter fra afgrøder minus variable omkostninger og maskinomkostninger. Vises her i kroner.',
+      'Dækningsbidrag 2: indtægter fra afgrøder minus variable omkostninger og maskinomkostninger.',
   },
   nLoad: {
     title: 'N-udledning',
     description:
-      'Den beregnede mængde kvælstof (N), der når kystvandet fra markerne. Angives i kg N.',
+      'Den beregnede mængde kvælstof (N), der når kystvandet fra markerne.',
   },
   quota: {
     title: 'Kvote',

@@ -15,10 +15,7 @@ import { useCatchmentLabel } from '@/components/farm/catchment-options'
 import { ComparisonCharts } from '@/components/farm/ComparisonCharts'
 import { ComparisonLoading } from '@/components/farm/ComparisonLoading'
 import { ComparisonRanking } from '@/components/farm/ComparisonRanking'
-import {
-  columnFigure,
-  type ComparedColumn,
-} from '@/components/farm/comparison-column'
+import type { ComparedColumn } from '@/components/farm/comparison-column'
 import { SimulationComparisonPicker } from '@/components/farm/SimulationComparisonPicker'
 import { LoadError } from '@/components/ui/load-error'
 import {
@@ -26,6 +23,7 @@ import {
   computeFieldTotals,
   summarizeCatchmentYearTotals,
   summarizeCropDistribution,
+  totalsPerHa,
   type CatchmentTotalsByYear,
   type FieldTotals,
 } from '@/lib/field-domain'
@@ -264,8 +262,8 @@ export const SimulationComparison = ({
   const [history, ...simulationColumns] = compared
   const candidates = simulationColumns.map((column) => ({
     column,
-    db2: columnFigure(column, column.totals.db2),
-    nLoad: columnFigure(column, column.totals.nLoad),
+    db2PerHa: totalsPerHa(column.totals, 'db2'),
+    nLoadPerHa: totalsPerHa(column.totals, 'nLoad'),
     yearsOver: column.yearsOver,
   }))
   const bestBalance = rankByBalance(candidates).at(0)?.column
@@ -275,14 +273,14 @@ export const SimulationComparison = ({
       : describeComparisonVerdict({
           best: {
             title: bestBalance.title,
-            db2: columnFigure(bestBalance, bestBalance.totals.db2),
+            db2PerHa: totalsPerHa(bestBalance.totals, 'db2'),
             yearsOver: bestBalance.yearsOver,
           },
           compliantCount: simulationColumns.filter(
             (column) => column.yearsOver === 0,
           ).length,
           simulationCount: simulationColumns.length,
-          historyDb2: columnFigure(history, history.totals.db2),
+          historyDb2PerHa: totalsPerHa(history.totals, 'db2'),
         })
   const ordered = [
     history,

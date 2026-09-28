@@ -251,7 +251,7 @@ const N_LOAD: NumericSpec = {
 const DB2: NumericSpec = {
   kind: 'numeric',
   label: 'DB2',
-  unit: 'kr./ha',
+  unit: 'kr/ha',
   source: 'farm',
   property: 'db2',
   bins: [

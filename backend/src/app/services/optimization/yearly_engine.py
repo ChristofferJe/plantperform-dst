@@ -1,14 +1,14 @@
 """CP-SAT model for "Års-optimering" (Phase 11), parallel to engine.py's solve().
 
 It operates on per-calendar-year udledning/DB2 instead of scenarie totals. See
-YearlyRotationOption and related types in domain/optimization.py for why this is
+YearlyRotationOption and related types in optimization/models.py for why this is
 a peer system rather than a rewrite of solve().
 """
 from collections import defaultdict
 
 from ortools.sat.python import cp_model
 
-from app.domain.optimization import (
+from app.services.optimization.models import (
     AssignedRotation,
     YearlyOptimizationInput,
     YearlyOptimizationOutput,

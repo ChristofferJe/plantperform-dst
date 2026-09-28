@@ -2,7 +2,15 @@ from dataclasses import dataclass
 
 from app.data import repository
 from app.domain.field import FieldRecord, UpdateFieldRequest
-from app.domain.optimization import (
+from app.domain.rotation_candidate import (
+    RotationCandidateEvaluation,
+    RotationCandidateRef,
+    RotationPositionOverride,
+)
+from app.domain.simulation import GodningSettings, KystvandoplandNLoadCap
+from app.domain.soil import PercolationByKategori
+from app.services.optimization.engine import solve
+from app.services.optimization.models import (
     ConstraintsInput,
     FieldInput,
     FixedFieldContribution,
@@ -16,14 +24,6 @@ from app.domain.optimization import (
     YearlyOptimizationOutput,
     YearlyRotationOption,
 )
-from app.domain.rotation_candidate import (
-    RotationCandidateEvaluation,
-    RotationCandidateRef,
-    RotationPositionOverride,
-)
-from app.domain.simulation import GodningSettings, KystvandoplandNLoadCap
-from app.domain.soil import PercolationByKategori
-from app.services.optimization.engine import solve
 from app.services.optimization.yearly_engine import NUM_YEARS, solve_yearly
 from app.services.scenario import candidate_evaluator
 

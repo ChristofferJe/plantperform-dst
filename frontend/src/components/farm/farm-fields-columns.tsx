@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import {
   describeSeparateQuotas,
   describeUncalculatedCount,
-  formatCompactDkk,
+  fieldFigure,
   formatLockTooltip,
   formatNumber,
   formatQuotaAmount,
@@ -21,10 +21,14 @@ import {
   getFieldQuotaStatus,
   isFieldCalculated,
   isFieldLocked,
+  perHaUnit,
   REAL_HISTORY_START_CALENDAR_YEAR,
   ROTATION_START_CALENDAR_YEAR,
+  totalsFigure,
   type FarmQuota,
   type FieldTotals,
+  type PerHaFigure,
+  type PerHaMetric,
   type QuotaStatus,
   type QuotaStatusLevel,
 } from '@/lib/field-domain'
@@ -45,7 +49,8 @@ const HEADER_SUBLINE_CLASS = 'block text-[11px] leading-4 font-normal'
 const BODY_CELL_CLASS = `${CELL_X_PADDING} py-1 whitespace-nowrap full:py-1.5`
 const NUMERIC_HEADER_CLASS = `${HEADER_CELL_CLASS} text-right`
 const NUMERIC_CELL_CLASS = `${BODY_CELL_CLASS} text-right`
-const PER_HECTARE_CLASS = 'hidden text-xs text-muted-foreground full:block'
+const SECONDARY_LINE_CLASS =
+  'hidden text-xs font-normal text-muted-foreground full:block'
 
 const uniqueCropNames = (rotation: FieldRecord['cropRotation']): string[] => {
   const seenNames: string[] = []
@@ -144,41 +149,31 @@ const renderQuotaStatusFooter = (quota: FarmQuota) => {
 }
 
 type NumericMetricColumnConfig = {
-  key: 'db2' | 'nLoad' | 'leaching' | 'feedUnits'
+  key: PerHaMetric
   label: string
   heading: string
-  unit: string
   emptyCell: (placement: 'cell' | 'footer') => ReactNode
-  compactValue?: (value: number) => string
 }
 
-const renderMetricValue = (
-  value: number,
-  unit: string,
-  compactValue?: (value: number) => string,
-): ReactNode => {
-  const full = `${formatNumber(value)} ${unit}`
-  if (!compactValue) return <div className="font-medium">{full}</div>
-  return (
-    <div className="font-medium">
-      <span className="full:hidden">{compactValue(value)}</span>
-      <span className="hidden full:inline">{full}</span>
-    </div>
-  )
-}
+const renderMetricFigure = ({ value, total }: PerHaFigure): ReactNode => (
+  <>
+    <div className="font-medium">{value}</div>
+    {total ? <div className={SECONDARY_LINE_CLASS}>{total}</div> : null}
+  </>
+)
 
 const numericMetricColumn = (
   config: NumericMetricColumnConfig,
   isSimulationView: boolean,
   totals: FieldTotals,
 ): ColumnDef<FieldRecord, unknown> => {
-  const { key, label, heading, unit, emptyCell, compactValue } = config
+  const { key, label, heading, emptyCell } = config
   return {
     accessorKey: key,
     header: ({ column }) => (
       <SortableColumnHeaderContent
         label={heading}
-        unit={unit}
+        unit={perHaUnit(key)}
         align="right"
         column={column}
       />
@@ -188,22 +183,12 @@ const numericMetricColumn = (
       if (!isFieldCalculated(field, isSimulationView)) {
         return emptyCell('cell')
       }
-      const value = field[key]
-      return (
-        <>
-          {renderMetricValue(value, unit, compactValue)}
-          {field.areaHa > 0 ? (
-            <div className={PER_HECTARE_CLASS}>
-              {`${formatNumber(value / field.areaHa)} ${unit}/ha`}
-            </div>
-          ) : null}
-        </>
-      )
+      return renderMetricFigure(fieldFigure(field, key))
     },
     footer: () =>
       totals.calculatedCount === 0
         ? emptyCell('footer')
-        : renderMetricValue(totals[key], unit, compactValue),
+        : renderMetricFigure(totalsFigure(totals, key)),
     meta: {
       headerClassName: NUMERIC_HEADER_CLASS,
       cellClassName: NUMERIC_CELL_CLASS,
@@ -646,9 +631,8 @@ export const buildFarmFieldsColumns = ({
     numericMetricColumn(
       {
         key: 'db2',
-        label: 'DB2 (kr)',
+        label: 'DB2 (kr/ha)',
         heading: 'DB2',
-        unit: 'kr',
         emptyCell: (placement) =>
           placement === 'cell' ? (
             <Badge
@@ -662,7 +646,6 @@ export const buildFarmFieldsColumns = ({
               Ikke beregnet
             </span>
           ),
-        compactValue: formatCompactDkk,
       },
       isSimulationView,
       totals,
@@ -708,9 +691,8 @@ export const buildFarmFieldsColumns = ({
     numericMetricColumn(
       {
         key: 'nLoad',
-        label: 'Kvælstofudledning (kg N)',
+        label: 'Kvælstofudledning (kg N/ha)',
         heading: 'Kvælstofudledning',
-        unit: 'kg N',
         emptyCell: () => <span className="text-muted-foreground">-</span>,
       },
       isSimulationView,
@@ -719,9 +701,8 @@ export const buildFarmFieldsColumns = ({
     numericMetricColumn(
       {
         key: 'leaching',
-        label: 'Udvaskning (kg N)',
+        label: 'Udvaskning (kg N/ha)',
         heading: 'Udvaskning',
-        unit: 'kg N',
         emptyCell: () => <span className="text-muted-foreground">-</span>,
       },
       isSimulationView,
@@ -730,9 +711,8 @@ export const buildFarmFieldsColumns = ({
     numericMetricColumn(
       {
         key: 'feedUnits',
-        label: 'Foderenheder (FE)',
+        label: 'Foderenheder (FE/ha)',
         heading: 'Foderenheder',
-        unit: 'FE',
         emptyCell: () => <span className="text-muted-foreground">-</span>,
       },
       isSimulationView,
@@ -766,7 +746,7 @@ export const buildFarmFieldsColumns = ({
               {formatNumber(field.nLoadQuotaKgN)} kg N
             </div>
             {field.areaHa > 0 ? (
-              <div className={PER_HECTARE_CLASS}>
+              <div className={SECONDARY_LINE_CLASS}>
                 {formatNumber(field.nLoadQuotaKgN / field.areaHa)} kg N/ha
               </div>
             ) : null}

@@ -180,9 +180,9 @@ export const formatLockTooltip = (field: FieldRecord): string => {
 
   if (field.areaHa > 0) {
     lines.push(
-      `DB2 ${formatNumber(field.db2 / field.areaHa)} kr/ha · ` +
-        `Udledning ${formatNumber(field.nLoad / field.areaHa)} kg N/ha · ` +
-        `Udvaskning ${formatNumber(field.leaching / field.areaHa)} kg N/ha`,
+      `DB2 ${formatPerHa(field.db2 / field.areaHa, 'db2')} · ` +
+        `Udledning ${formatPerHa(field.nLoad / field.areaHa, 'nLoad')} · ` +
+        `Udvaskning ${formatPerHa(field.leaching / field.areaHa, 'leaching')}`,
     )
   }
 
@@ -490,6 +490,8 @@ export type FieldTotals = {
   uncalculatedCount: number
   excludedCount: number
   areaHa: number
+  calculatedAreaHa: number
+  nLoadAreaHa: number
   db2: number
   nLoad: number
   leaching: number
@@ -507,6 +509,8 @@ export const computeFieldTotals = (
     uncalculatedCount: 0,
     excludedCount: 0,
     areaHa: 0,
+    calculatedAreaHa: 0,
+    nLoadAreaHa: 0,
     db2: 0,
     nLoad: 0,
     leaching: 0,
@@ -526,12 +530,14 @@ export const computeFieldTotals = (
     }
     if (!isFieldCalculated(field, isSimulationView)) continue
     totals.calculatedCount += 1
+    totals.calculatedAreaHa += field.areaHa
     totals.db2 += field.db2
     totals.feedUnits += field.feedUnits
     // A mark that is not quota eligible draws down no quota and must not
     // contribute to the N load it is compared against either - see
     // getFieldQuotaStatus.
     if (field.quotaEligible) {
+      totals.nLoadAreaHa += field.areaHa
       totals.nLoad += field.nLoad
       totals.leaching += field.leaching
     }
@@ -540,6 +546,77 @@ export const computeFieldTotals = (
   totals.uncalculatedCount = fields.length - totals.calculatedCount
   return totals
 }
+
+export type PerHaMetric = 'db2' | 'nLoad' | 'leaching' | 'feedUnits'
+
+const METRIC_UNITS: Record<PerHaMetric, string> = {
+  db2: 'kr',
+  nLoad: 'kg N',
+  leaching: 'kg N',
+  feedUnits: 'FE',
+}
+
+export const perHaUnit = (metric: PerHaMetric): string =>
+  `${METRIC_UNITS[metric]}/ha`
+
+export const perHa = (value: number, areaHa: number): number | null =>
+  areaHa > 0 ? value / areaHa : null
+
+export const totalsPerHa = (
+  totals: FieldTotals,
+  metric: PerHaMetric,
+): number | null =>
+  perHa(
+    totals[metric],
+    metric === 'db2' || metric === 'feedUnits'
+      ? totals.calculatedAreaHa
+      : totals.nLoadAreaHa,
+  )
+
+const formatMetricValue = (value: number, metric: PerHaMetric): string =>
+  metric === 'db2' || metric === 'feedUnits'
+    ? formatWholeNumber(value)
+    : formatNumber(value)
+
+export const formatPerHa = (value: number, metric: PerHaMetric): string =>
+  `${formatMetricValue(value, metric)} ${perHaUnit(metric)}`
+
+const formatMetricTotal = (value: number, metric: PerHaMetric): string =>
+  `${formatMetricValue(value, metric)} ${METRIC_UNITS[metric]}`
+
+export type PerHaFigure = {
+  value: string
+  total?: string
+}
+
+export const perHaFigure = (
+  valuePerHa: number | null,
+  metric: PerHaMetric,
+  total: string,
+): PerHaFigure =>
+  valuePerHa === null
+    ? { value: total }
+    : { value: formatPerHa(valuePerHa, metric), total: `${total} i alt` }
+
+export const fieldFigure = (
+  field: FieldRecord,
+  metric: PerHaMetric,
+): PerHaFigure =>
+  perHaFigure(
+    perHa(field[metric], field.areaHa),
+    metric,
+    formatMetricTotal(field[metric], metric),
+  )
+
+export const totalsFigure = (
+  totals: FieldTotals,
+  metric: PerHaMetric,
+): PerHaFigure =>
+  perHaFigure(
+    totalsPerHa(totals, metric),
+    metric,
+    formatMetricTotal(totals[metric], metric),
+  )
 
 export const totalsQuotaStatusLevel = (totals: FieldTotals): QuotaStatusLevel =>
   aggregateQuotaStatusLevel(

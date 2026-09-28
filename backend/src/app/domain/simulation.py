@@ -31,6 +31,26 @@ class CropPercentageConstraint(CamelModel):
     minimum_percentage: float = Field(ge=0, le=100)
 
 
+class CropAreaLimit(CamelModel):
+    """Hectares of one exact crop code allowed in each planning year."""
+
+    afgrode_kode: int = Field(gt=0)
+    min_area_ha: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    max_area_ha: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def validate_bounds(self) -> "CropAreaLimit":
+        if self.min_area_ha is None and self.max_area_ha is None:
+            raise ValueError("At least one crop area bound is required")
+        if (
+            self.min_area_ha is not None
+            and self.max_area_ha is not None
+            and self.min_area_ha > self.max_area_ha
+        ):
+            raise ValueError("min_area_ha cannot exceed max_area_ha")
+        return self
+
+
 class KystvandoplandNLoadCap(CamelModel):
     """Udledning cap for one kystvandopland.
 
@@ -50,6 +70,7 @@ class OptimizationConstraints(CamelModel):
     max_fen: float | None = Field(default=None, ge=0)
     max_fields_with_new_rotation: int | None = Field(default=None, ge=0)
     crop_percentages: list[CropPercentageConstraint] = Field(default_factory=list)
+    crop_area_limits: list[CropAreaLimit] = Field(default_factory=list)
     # UI-only memory of the last globally-applied allowed-rotation selection
     # from the simulation field list. The solver does not read this; it exists
     # purely so the checklist reloads in the same state next time the user
@@ -66,6 +87,14 @@ class OptimizationConstraints(CamelModel):
         if len(crops) != len(set(crops)):
             raise ValueError("Afgrødeandel-krav kan ikke indeholde samme afgrøde flere gange")
 
+        return value
+
+    @field_validator("crop_area_limits")
+    @classmethod
+    def validate_crop_area_limits(cls, value: list[CropAreaLimit]) -> list[CropAreaLimit]:
+        codes = [limit.afgrode_kode for limit in value]
+        if len(codes) != len(set(codes)):
+            raise ValueError("Crop area limits must use unique afgrode_kode values")
         return value
 
     @field_validator("globally_allowed_rotation_ids")
@@ -128,6 +157,7 @@ class Simulation(CamelModel):
 
 class CreateSimulationRequest(CamelModel):
     name: str = Field(min_length=1)
+    constraints: OptimizationConstraints = Field(default_factory=OptimizationConstraints)
     # Flat list of selected saedskiftevariant IDs (from the expandable list in
     # "Nyt scenarie", which still groups by category for browsing). The gødning
     # below is fully independent of this selection, as specified in Phase 13.

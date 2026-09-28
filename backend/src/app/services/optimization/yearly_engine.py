@@ -9,13 +9,13 @@ from collections import defaultdict
 from ortools.sat.python import cp_model
 
 from app.services.optimization.models import (
+    NUM_YEARS,
     AssignedRotation,
     YearlyOptimizationInput,
     YearlyOptimizationOutput,
 )
 
 SCALE = 1000
-NUM_YEARS = 8
 
 
 def _scale(value: float) -> int:
@@ -112,6 +112,25 @@ def solve_yearly(input: YearlyOptimizationInput) -> YearlyOptimizationOutput:
     total_fen = sum(fen_terms)
 
     constraints = input.constraints
+
+    for limit in constraints.crop_area_limits:
+        for year in range(NUM_YEARS):
+            chosen_area = sum(
+                _scale(field.area_ha) * choice_vars[(field.id, option.key)]
+                for field in input.fields
+                for option in field.options
+                if option.candidate.years[year].year.afgrode_kode == limit.afgrode_kode
+            )
+            fixed_area = sum(
+                _scale(fixed.area_ha)
+                for fixed in input.fixed_fields
+                if fixed.crop_codes_by_year[year] == limit.afgrode_kode
+            )
+            total_area = chosen_area + fixed_area
+            if limit.min_area_ha is not None:
+                model.Add(total_area >= _scale(limit.min_area_ha))
+            if limit.max_area_ha is not None:
+                model.Add(total_area <= _scale(limit.max_area_ha))
 
     for kystvand_id, caps in constraints.max_n_load_by_kystvandopland_and_year.items():
         year_totals = kvotegivende_n_load_by_kystvand_year.get(kystvand_id)

@@ -528,6 +528,7 @@ def create_simulation(
             farm_id=farm_id,
             name=request.name,
             created_at=datetime.now(UTC).isoformat(),
+            constraints=request.constraints,
             rotation_saedskiftevarianter=request.saedskiftevarianter,
             rotation_n_norm_procenter=request.n_norm_procenter,
             godning=request.godning,
@@ -871,18 +872,31 @@ def update_simulation_constraints(
         if simulation is None:
             return None
 
+        # PATCH preserves omitted settings, including rules unknown to an older client.
+        supplied_fields = constraints.model_fields_set
+        constraints = OptimizationConstraints.model_validate({
+            **_dump(simulation.constraints),
+            **constraints.model_dump(mode="json", exclude_unset=True),
+        })
         max_fields = constraints.max_fields_with_new_rotation
         field_count = session.execute(
             select(func.count()).where(
                 simulation_field_table.c.simulation_id == simulation_id,
             ),
         ).scalar_one()
-        if max_fields is not None and max_fields > field_count:
+        if (
+            "max_fields_with_new_rotation" in supplied_fields
+            and max_fields is not None
+            and max_fields > field_count
+        ):
             raise ValueError(
                 "Maximum fields with new rotations cannot exceed the simulation field count"
             )
 
-        if constraints.globally_allowed_rotation_ids is not None:
+        if (
+            "globally_allowed_rotation_ids" in supplied_fields
+            and constraints.globally_allowed_rotation_ids is not None
+        ):
             farm = _get_farm(session, farm_id, email)
             if farm is None:
                 return None

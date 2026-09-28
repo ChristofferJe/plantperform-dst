@@ -125,8 +125,6 @@ export const FarmDetailPage = () => {
     null,
   )
   const [optimizeDialogOpen, setOptimizeDialogOpen] = useState(false)
-  const [yearlyOptimizeDialogOpen, setYearlyOptimizeDialogOpen] =
-    useState(false)
   const [newSimulationOpen, setNewSimulationOpen] = useState(false)
   const [simulationToDelete, setSimulationToDelete] =
     useState<Simulation | null>(null)
@@ -318,10 +316,6 @@ export const FarmDetailPage = () => {
             setOptimizeDialogOpen(true)
             leaveOverview()
           }}
-          onYearlyOptimize={() => {
-            setYearlyOptimizeDialogOpen(true)
-            leaveOverview()
-          }}
           view={effectiveView}
           splitAvailable={splitAvailable}
           onViewChange={(next) => {
@@ -391,8 +385,6 @@ export const FarmDetailPage = () => {
                   onSelectedYearIndexChange={setSelectedYearIndex}
                   optimizeDialogOpen={optimizeDialogOpen}
                   onOptimizeDialogOpenChange={setOptimizeDialogOpen}
-                  yearlyOptimizeDialogOpen={yearlyOptimizeDialogOpen}
-                  onYearlyOptimizeDialogOpenChange={setYearlyOptimizeDialogOpen}
                   onError={showErrorToast}
                 />
               }

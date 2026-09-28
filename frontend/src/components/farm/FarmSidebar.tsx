@@ -1,5 +1,4 @@
 import {
-  CalendarRange,
   ChevronRight,
   ChevronsUpDown,
   Copy,
@@ -83,7 +82,7 @@ import {
   type QuotaStatusLevel,
 } from '@/lib/field-domain'
 import { getStoredRole, ROLE_LABELS } from '@/lib/onboarding'
-import { OPTIMIZATION_KIND_LABELS } from '@/lib/optimization-run'
+import { optimizationRunName } from '@/lib/optimization-run'
 import {
   describeFieldChanges,
   formatCreatedAt,
@@ -151,7 +150,6 @@ type FarmSidebarProps = {
   mode: FarmInspectorMode
   onModeChange: (mode: FarmInspectorMode) => void
   onOptimize: () => void
-  onYearlyOptimize: () => void
   view: FarmView
   splitAvailable: boolean
   onViewChange: (view: FarmView) => void
@@ -182,7 +180,6 @@ export const FarmSidebar = ({
   mode,
   onModeChange,
   onOptimize,
-  onYearlyOptimize,
   view,
   splitAvailable,
   onViewChange,
@@ -318,7 +315,6 @@ export const FarmSidebar = ({
                         mode={mode}
                         onModeChange={onModeChange}
                         onOptimize={onOptimize}
-                        onYearlyOptimize={onYearlyOptimize}
                         onSelect={() =>
                           onSelectionChange({
                             kind: 'simulation',
@@ -559,7 +555,6 @@ type SimulationMenuItemProps = {
   mode: FarmInspectorMode
   onModeChange: (mode: FarmInspectorMode) => void
   onOptimize: () => void
-  onYearlyOptimize: () => void
   onSelect: () => void
   onCopy: () => void
   onDelete: () => void
@@ -577,7 +572,6 @@ const SimulationMenuItem = ({
   mode,
   onModeChange,
   onOptimize,
-  onYearlyOptimize,
   onSelect,
   onCopy,
   onDelete,
@@ -675,7 +669,7 @@ const SimulationMenuItem = ({
                   </span>
                 ) : failedRun ? (
                   <span>
-                    {OPTIMIZATION_KIND_LABELS[failedRun.kind]} fejlede
+                    {optimizationRunName(failedRun.kind)} fejlede
                   </span>
                 ) : null}
               </div>
@@ -727,7 +721,6 @@ const SimulationMenuItem = ({
           running={running}
           onModeChange={onModeChange}
           onOptimize={onOptimize}
-          onYearlyOptimize={onYearlyOptimize}
         />
       ) : null}
     </SidebarMenuItem>
@@ -749,7 +742,7 @@ const SimulationRunFailure = ({ run, fields }: SimulationRunFailureProps) => {
     >
       <AppTooltip content={run.status === 'failed' ? run.error : undefined}>
         <span className="min-w-0 flex-1 truncate">
-          {OPTIMIZATION_KIND_LABELS[run.kind]} fejlede
+          {optimizationRunName(run.kind)} fejlede
         </span>
       </AppTooltip>
       <button
@@ -780,7 +773,6 @@ type SimulationSubMenuProps = {
   running: boolean
   onModeChange: (mode: FarmInspectorMode) => void
   onOptimize: () => void
-  onYearlyOptimize: () => void
 }
 
 const SimulationSubMenu = ({
@@ -789,7 +781,6 @@ const SimulationSubMenu = ({
   running,
   onModeChange,
   onOptimize,
-  onYearlyOptimize,
 }: SimulationSubMenuProps) => (
   <SidebarMenuSub>
     <AppTooltip content="Vis hvad optimeringen har beregnet for markerne">
@@ -838,20 +829,6 @@ const SimulationSubMenu = ({
           >
             <Play />
             <span>Optimér</span>
-          </button>
-        </SidebarMenuSubButton>
-      </SidebarMenuSubItem>
-    </AppTooltip>
-    <AppTooltip content={running ? RUN_IN_PROGRESS_TITLE : undefined}>
-      <SidebarMenuSubItem>
-        <SidebarMenuSubButton asChild className="w-full">
-          <button
-            type="button"
-            disabled={disabled || running}
-            onClick={onYearlyOptimize}
-          >
-            <CalendarRange />
-            <span>Års-optimering</span>
           </button>
         </SidebarMenuSubButton>
       </SidebarMenuSubItem>

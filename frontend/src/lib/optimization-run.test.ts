@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { optimizationFailureMessage } from '@/lib/optimization-run'
+import {
+  optimizationFailureMessage,
+  optimizationRunName,
+} from '@/lib/optimization-run'
 
 describe('optimizationFailureMessage', () => {
   it('replaces the out-of-time message with one the user can act on', () => {
@@ -24,5 +27,14 @@ describe('optimizationFailureMessage', () => {
       message,
     )
     expect(optimizationFailureMessage({ message }, 600)).toBe(message)
+  })
+})
+
+describe('optimizationRunName', () => {
+  it('names the run after the type chosen in the dialog', () => {
+    expect(optimizationRunName('optimize')).toBe(
+      'Optimering (gennemsnit for perioden)',
+    )
+    expect(optimizationRunName('yearly')).toBe('Optimering (loft hvert år)')
   })
 })

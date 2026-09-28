@@ -17,7 +17,7 @@ import {
 import {
   formatElapsed,
   formatFieldNameList,
-  OPTIMIZATION_KIND_LABELS,
+  optimizationRunName,
   RUN_STATUS_LABELS,
   type OptimizationChanges,
 } from '@/lib/optimization-run'
@@ -56,7 +56,7 @@ const RunningDetails = ({ run }: OptimizationRunProgressProps) => {
       <p className="text-base font-semibold">
         {overLimit
           ? 'Gemmer resultatet...'
-          : `Kører ${OPTIMIZATION_KIND_LABELS[run.kind]}...`}
+          : `Kører ${optimizationRunName(run.kind).toLowerCase()}...`}
       </p>
       <p className="text-sm tabular-nums text-muted-foreground">
         {formatElapsed(elapsed)}
@@ -130,7 +130,7 @@ const SucceededDetails = ({
   return (
     <>
       <p className="text-base font-semibold">
-        {OPTIMIZATION_KIND_LABELS[run.kind]} færdig
+        {optimizationRunName(run.kind)} færdig
       </p>
       <p className="text-sm text-muted-foreground first-letter:uppercase">
         {RUN_STATUS_LABELS[run.response.status]} ·{' '}

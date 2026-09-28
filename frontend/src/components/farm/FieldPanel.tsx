@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { DisclosureButton } from '@/components/ui/disclosure-button'
 import { cropGroupFor } from '@/lib/crop-groups'
 import {
+  fieldFigure,
   fieldTitle,
   formatNumber,
   formatQuotaAmount,
@@ -77,41 +78,7 @@ const QuotaStatusPill = ({
   )
 }
 
-const PrimaryMetricCard = ({
-  label,
-  term,
-  value,
-  unit,
-  muted = false,
-}: {
-  label: string
-  term?: GlossaryTerm
-  value: string
-  unit?: string
-  muted?: boolean
-}) => (
-  <div className="rounded-lg border bg-card p-3 @2xl:border-2 @2xl:border-primary/20 @2xl:p-4">
-    <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground @2xl:text-primary">
-      {label}
-      {term ? <GlossaryInfo term={term} /> : null}
-    </div>
-    <div
-      className={cn(
-        'mt-1 leading-tight tabular-nums',
-        muted
-          ? 'text-sm font-medium text-muted-foreground'
-          : 'text-lg font-bold text-foreground @2xl:text-2xl',
-      )}
-    >
-      {value}
-    </div>
-    {unit ? (
-      <div className="mt-0.5 text-xs text-muted-foreground">{unit}</div>
-    ) : null}
-  </div>
-)
-
-const SupportMetricCard = ({
+const MetricCard = ({
   label,
   term,
   value,
@@ -126,29 +93,31 @@ const SupportMetricCard = ({
   detailItalic?: boolean
   muted?: boolean
 }) => (
-  <div className="rounded-lg border bg-card px-3 py-2 @2xl:p-4 @2xl:opacity-90">
-    <div className="flex items-center gap-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+  <div className="rounded-lg border bg-card p-3 @2xl:border-2 @2xl:border-primary/20 @2xl:p-4">
+    <div className="flex min-h-5 items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground @2xl:text-primary">
       {label}
       {term ? <GlossaryInfo term={term} /> : null}
     </div>
     <div
       className={cn(
-        'mt-0.5 text-sm tabular-nums @2xl:mt-1 @2xl:text-lg',
-        muted ? 'font-medium text-muted-foreground' : 'font-semibold',
+        'mt-1 leading-tight tabular-nums',
+        muted
+          ? 'text-sm font-medium text-muted-foreground'
+          : 'text-lg font-bold text-foreground @2xl:text-2xl',
       )}
     >
       {value}
-      {detail ? (
-        <span
-          className={cn(
-            'ml-1 text-xs font-normal text-muted-foreground',
-            detailItalic && 'italic',
-          )}
-        >
-          ({detail})
-        </span>
-      ) : null}
     </div>
+    {detail ? (
+      <div
+        className={cn(
+          'mt-0.5 text-xs text-muted-foreground',
+          detailItalic && 'italic',
+        )}
+      >
+        {detail}
+      </div>
+    ) : null}
   </div>
 )
 
@@ -197,6 +166,10 @@ export const FieldPanel = ({
   }, [farmId, isSimulationView, simulationId])
 
   const calculated = isFieldCalculated(field, isSimulationView)
+  const db2Figure = fieldFigure(field, 'db2')
+  const nLoadFigure = fieldFigure(field, 'nLoad')
+  const leachingFigure = fieldFigure(field, 'leaching')
+  const feedUnitsFigure = fieldFigure(field, 'feedUnits')
   const rotationStartYear = isSimulationView
     ? ROTATION_START_CALENDAR_YEAR
     : REAL_HISTORY_START_CALENDAR_YEAR
@@ -257,48 +230,28 @@ export const FieldPanel = ({
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-x-2 gap-y-4 @2xl:grid-cols-4 @2xl:gap-3">
-          <PrimaryMetricCard
+        <div className="grid grid-cols-2 gap-2 @2xl:grid-cols-4 @2xl:gap-3">
+          <MetricCard
             label="DB2"
             term="db2"
-            value={
-              calculated ? `${formatNumber(field.db2)} kr` : 'Ikke beregnet'
-            }
-            unit={
-              calculated && field.areaHa > 0
-                ? `${formatNumber(field.db2 / field.areaHa)} kr/ha`
-                : undefined
-            }
+            value={calculated ? db2Figure.value : 'Ikke beregnet'}
+            detail={calculated ? db2Figure.total : undefined}
             muted={!calculated}
           />
-          <PrimaryMetricCard
+          <MetricCard
             label="Udledning"
             term="nLoad"
-            value={
-              calculated ? `${formatNumber(field.nLoad)} kg N` : 'Ikke beregnet'
-            }
-            unit={
-              calculated && field.areaHa > 0
-                ? `${formatNumber(field.nLoad / field.areaHa)} kg N/ha`
-                : undefined
-            }
+            value={calculated ? nLoadFigure.value : 'Ikke beregnet'}
+            detail={calculated ? nLoadFigure.total : undefined}
             muted={!calculated}
           />
-          <SupportMetricCard
+          <MetricCard
             label="Udvaskning"
-            value={
-              calculated
-                ? `${formatNumber(field.leaching)} kg N`
-                : 'Ikke beregnet'
-            }
-            detail={
-              calculated && field.areaHa > 0
-                ? `${formatNumber(field.leaching / field.areaHa)} kg N/ha`
-                : undefined
-            }
+            value={calculated ? leachingFigure.value : 'Ikke beregnet'}
+            detail={calculated ? leachingFigure.total : undefined}
             muted={!calculated}
           />
-          <SupportMetricCard
+          <MetricCard
             label="Foderenheder"
             term="feedUnits"
             value={
@@ -306,16 +259,14 @@ export const FieldPanel = ({
                 ? 'Ikke beregnet'
                 : field.feedUnits === 0
                   ? '-'
-                  : `${formatNumber(field.feedUnits)} FE`
+                  : feedUnitsFigure.value
             }
             detail={
               !calculated
                 ? undefined
                 : field.feedUnits === 0
                   ? 'ingen grovfoder i sædskiftet'
-                  : field.areaHa > 0
-                    ? `${formatNumber(field.feedUnits / field.areaHa)} FE/ha`
-                    : undefined
+                  : feedUnitsFigure.total
             }
             detailItalic={calculated && field.feedUnits === 0}
             muted={!calculated || field.feedUnits === 0}

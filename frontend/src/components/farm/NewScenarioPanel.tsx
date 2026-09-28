@@ -688,9 +688,8 @@ export const NewScenarioPanel = ({
               <span>
                 <span className="font-medium">Anvend præcisionsjordbrug</span>
                 <span className="block text-xs text-muted-foreground">
-                  4 % ekstra reduktion af udvaskningen og 50 kr./ha i
-                  omkostning. Gælder kun år med korn eller raps som
-                  hovedafgrøde.
+                  4 % ekstra reduktion af udvaskningen og 50 kr/ha i omkostning.
+                  Gælder kun år med korn eller raps som hovedafgrøde.
                 </span>
               </span>
             </label>

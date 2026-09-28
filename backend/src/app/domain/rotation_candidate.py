@@ -25,7 +25,8 @@ class RotationCandidateRef(CamelModel):
 
     @classmethod
     def from_id(cls, value: str) -> RotationCandidateRef:
-        saedskiftevariant, variant, n_norm_pct = value.split(":")
+        saedskiftevariant, rest = value.split(":", 1)
+        variant, n_norm_pct = rest.rsplit(":", 1)
         return cls(saedskiftevariant=saedskiftevariant, variant=variant, n_norm_pct=n_norm_pct)
 
 

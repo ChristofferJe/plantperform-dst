@@ -2,7 +2,7 @@ from collections import defaultdict
 
 from ortools.sat.python import cp_model
 
-from app.domain.optimization import (
+from app.services.optimization.models import (
     AssignedRotation,
     OptimizationInput,
     OptimizationOutput,

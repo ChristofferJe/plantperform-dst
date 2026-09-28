@@ -12,7 +12,7 @@ import { useElapsed } from '@/hooks/use-elapsed'
 import { formatFieldCount, isFieldCalculated } from '@/lib/field-domain'
 import {
   formatElapsed,
-  OPTIMIZATION_KIND_LABELS,
+  optimizationRunName,
 } from '@/lib/optimization-run'
 import { cn } from '@/lib/utils'
 
@@ -20,10 +20,10 @@ type RunProps = {
   run: OptimizationRun
 }
 
-// "Års-optimering · 0:12", ticking while the run is going.
+// "Optimering (loft hvert år) · 0:12", ticking while the run is going.
 export const OptimizationRunElapsed = ({ run }: RunProps) => {
   const elapsed = useElapsed(run.startedAt, run.status === 'running')
-  return `${OPTIMIZATION_KIND_LABELS[run.kind]} · ${formatElapsed(elapsed)}`
+  return `${optimizationRunName(run.kind)} · ${formatElapsed(elapsed)}`
 }
 
 type OptimizationBannerProps = {
@@ -78,7 +78,7 @@ export const OptimizationBanner = ({
     return (
       <LoadError
         className={cn('w-full whitespace-pre-wrap', className)}
-        message={`${OPTIMIZATION_KIND_LABELS[run.kind]} fejlede: ${run.error}`}
+        message={`${optimizationRunName(run.kind)} fejlede: ${run.error}`}
         onRetry={retry}
         onDismiss={dismiss}
       />

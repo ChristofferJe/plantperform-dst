@@ -415,8 +415,8 @@ export const SimulationRulesPanel = ({
 
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <Info className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Års-optimeringens indstillinger gemmes ikke her - de gælder kun den
-          enkelte kørsel.
+          Indstillingerne for Optimér med loft hvert år gemmes ikke her - de
+          gælder kun den enkelte kørsel.
         </p>
       </CardContent>
     </Card>

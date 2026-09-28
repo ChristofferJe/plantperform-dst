@@ -1,34 +1,24 @@
-import { Info, SlidersHorizontal } from 'lucide-react'
 import { useCallback, useId, useMemo, useState } from 'react'
 import { mutate } from 'swr'
 
 import {
   simulationFieldsKey,
   useFarmHistoricalYearlySummary,
-  useScenarioCropCodes,
   useFieldYearValues,
   useSimulationYearlySummary,
-  useYearlyOptimizationCandidates,
 } from '@/api/hooks'
 import { updateSimulationField } from '@/api/mutations'
 import {
   useOptimizationRun,
   useOptimizationRunActions,
 } from '@/api/optimization-runs'
-import type {
-  Farm,
-  FieldRecord,
-  CatchmentYearlyNLoadCaps,
-  Simulation,
-} from '@/api/types'
+import type { Farm, FieldRecord, Simulation } from '@/api/types'
 import { CatchmentPicker } from '@/components/farm/CatchmentPicker'
 import {
   catchmentKey,
-  effectiveMaxNLoadByCatchment,
   fieldInCatchment,
   useCatchmentColor,
   useCatchmentLabel,
-  useCatchmentOptions,
 } from '@/components/farm/catchment-options'
 import { useDetachFields } from '@/components/farm/detach-fields'
 import { DetachFieldsDialog } from '@/components/farm/DetachFieldsDialog'
@@ -44,8 +34,7 @@ import { FarmSplitView } from '@/components/farm/FarmSplitView'
 import { FieldDetailPanel } from '@/components/farm/FieldDetailPanel'
 import { FieldSearch } from '@/components/farm/FieldSearch'
 import { ManualRotationEditor } from '@/components/farm/ManualRotationEditor'
-import { OptimizationRunProgress } from '@/components/farm/OptimizationRunProgress'
-import { useOptimizationDialogRun } from '@/components/farm/optimization-dialog-run'
+import { OptimizeDialog } from '@/components/farm/OptimizeDialog'
 import { SimulationRulesPanel } from '@/components/farm/SimulationRulesPanel'
 import type {
   FarmInspectorMode,
@@ -56,25 +45,11 @@ import { OptimizationBanner } from '@/components/farm/OptimizationRunStatus'
 import { useOverviewCollapsed } from '@/components/farm/overview-layout'
 import { OverviewCollapseToggle } from '@/components/farm/OverviewCollapseToggle'
 import { YearWalkthrough } from '@/components/farm/YearWalkthrough'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { LoadError } from '@/components/ui/load-error'
-import { Spinner } from '@/components/ui/spinner'
 import {
   applyFieldYearValues,
-  formatNumber,
   isFieldLocked,
   orderFieldsByCatchment,
-  ROTATION_CALENDAR_YEARS,
   summarizeCatchmentYearTotals,
   summarizeFieldYears,
 } from '@/lib/field-domain'
@@ -107,8 +82,6 @@ type FarmInspectorProps = {
   onSelectedYearIndexChange: (index: number | null) => void
   optimizeDialogOpen: boolean
   onOptimizeDialogOpenChange: (open: boolean) => void
-  yearlyOptimizeDialogOpen: boolean
-  onYearlyOptimizeDialogOpenChange: (open: boolean) => void
   onError: (message: string | null) => void
 }
 
@@ -137,8 +110,6 @@ export const FarmInspector = ({
   onSelectedYearIndexChange,
   optimizeDialogOpen,
   onOptimizeDialogOpenChange,
-  yearlyOptimizeDialogOpen,
-  onYearlyOptimizeDialogOpenChange,
   onError,
 }: FarmInspectorProps) => {
   const optimizationRun = useOptimizationRun(selectedSimulation?.id)
@@ -419,17 +390,6 @@ export const FarmInspector = ({
         />
       ) : null}
 
-      {selectedSimulation ? (
-        <YearlyOptimizeDialog
-          key={`yearly-${selectedSimulation.id}`}
-          farmId={farm.id}
-          simulation={selectedSimulation}
-          fields={fields}
-          open={yearlyOptimizeDialogOpen}
-          onOpenChange={onYearlyOptimizeDialogOpenChange}
-        />
-      ) : null}
-
       <DetachFieldsDialog
         fields={detachRequest}
         onCancel={() => setDetachRequest([])}
@@ -655,535 +615,5 @@ export const FarmInspector = ({
         />
       ) : null}
     </section>
-  )
-}
-
-type OptimizeDialogProps = {
-  farmId: string
-  simulation: Simulation
-  fields: FieldRecord[]
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onOpenRules: () => void
-}
-
-const formatLimit = (value: number | null, unit: string) =>
-  value === null ? 'Ingen grænse' : `${formatNumber(value)} ${unit}`
-
-type CatchmentYearlyInput = {
-  sameForAllYears: boolean
-  uniform: string
-  perYear: Record<number, string>
-}
-
-const DEFAULT_CATCHMENT_YEARLY_INPUT: CatchmentYearlyInput = {
-  sameForAllYears: true,
-  uniform: '',
-  perYear: {},
-}
-
-const CropExclusionList = ({
-  farmId,
-  simulationId,
-  excludedCodes,
-  onToggle,
-}: {
-  farmId: string
-  simulationId: string
-  excludedCodes: Set<number>
-  onToggle: (code: number) => void
-}) => {
-  const {
-    data: crops = [],
-    error,
-    isLoading,
-    isValidating,
-    mutate: retry,
-  } = useScenarioCropCodes(farmId, simulationId)
-
-  if (isLoading) {
-    return (
-      <p className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Spinner className="size-3.5" />
-        Henter afgrøder...
-      </p>
-    )
-  }
-
-  if (error) {
-    return (
-      <LoadError
-        message="Kunne ikke hente simuleringens afgrøder, så ingen kan fravælges."
-        onRetry={() => void retry()}
-        retrying={isValidating}
-      />
-    )
-  }
-
-  if (crops.length === 0) return null
-
-  return (
-    <div className="space-y-2">
-      <Label>Afgrøder</Label>
-      <p className="text-xs text-muted-foreground">
-        Fravælg en afgrøde for at udelukke alle sædskifter, der indeholder den
-        et eller flere steder. Valget gælder kun denne kørsel.
-      </p>
-      <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
-        {crops.map((crop) => (
-          <label
-            key={crop.code}
-            className="flex items-center gap-2 rounded px-1 py-1 text-xs hover:bg-muted/50"
-          >
-            <input
-              type="checkbox"
-              checked={!excludedCodes.has(crop.code)}
-              onChange={() => onToggle(crop.code)}
-            />
-            <span>{crop.name}</span>
-          </label>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-const OptimizeDialog = ({
-  farmId,
-  simulation,
-  fields,
-  open,
-  onOpenChange,
-  onOpenRules,
-}: OptimizeDialogProps) => {
-  const { run, view, runError, startRun } = useOptimizationDialogRun(
-    simulation.id,
-    'optimize',
-    open,
-  )
-  const [excludedCropCodes, setExcludedCropCodes] = useState<Set<number>>(
-    new Set(),
-  )
-
-  const catchments = useCatchmentOptions(farmId, fields)
-  const catchmentLabelByKey = new Map(
-    catchments.map((catchment) => [
-      catchmentKey(catchment.catchmentId),
-      catchment.label,
-    ]),
-  )
-  const { constraints } = simulation
-  const effectiveMaxNLoad = effectiveMaxNLoadByCatchment(
-    fields,
-    constraints.maxNLoadByCatchment,
-  )
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) setExcludedCropCodes(new Set())
-    onOpenChange(nextOpen)
-  }
-
-  const toggleCrop = (code: number) => {
-    setExcludedCropCodes((current) => {
-      const next = new Set(current)
-      if (next.has(code)) next.delete(code)
-      else next.add(code)
-      return next
-    })
-  }
-
-  const runOptimization = () =>
-    startRun({
-      kind: 'optimize',
-      farmId,
-      simulationId: simulation.id,
-      input: {
-        excludedCropCodes: Array.from(excludedCropCodes),
-      },
-      fieldsBefore: fields,
-    })
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Optimér {simulation.name}</DialogTitle>
-          <DialogDescription>
-            Kør optimeringen med de regler, der er gemt på simuleringen.
-          </DialogDescription>
-        </DialogHeader>
-
-        {run && view !== 'form' ? (
-          <OptimizationRunProgress run={run} />
-        ) : (
-          <>
-            <div className="space-y-5">
-              <div className="space-y-2 rounded-lg border border-rules/30 bg-rules/5 p-3">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <SlidersHorizontal
-                    className="h-4 w-4 text-rules"
-                    aria-hidden="true"
-                  />
-                  Gældende grænser
-                </div>
-                <dl className="grid gap-2 text-xs sm:grid-cols-3">
-                  <div className="sm:col-span-3">
-                    <dt className="text-muted-foreground">Maks. udledning</dt>
-                    <dd>
-                      {catchments.length === 0 ? (
-                        'Ingen grænse'
-                      ) : (
-                        <ul className="space-y-0.5">
-                          {catchments.map((catchment) => {
-                            const key = catchmentKey(catchment.catchmentId)
-                            return (
-                              <li key={key}>
-                                {catchmentLabelByKey.get(key) ?? catchment.label}:{' '}
-                                {formatLimit(effectiveMaxNLoad.get(key) ?? null, 'kg N')}
-                              </li>
-                            )
-                          })}
-                        </ul>
-                      )}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Min. foderenheder</dt>
-                    <dd>{formatLimit(constraints.minFeedUnits, 'FE')}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-muted-foreground">Maks. foderenheder</dt>
-                    <dd>{formatLimit(constraints.maxFeedUnits, 'FE')}</dd>
-                  </div>
-                </dl>
-                <p className="text-xs text-muted-foreground">
-                  Ændres under <strong>Regler</strong> - ikke her.{' '}
-                  <button
-                    type="button"
-                    className="rounded-sm font-medium text-rules underline underline-offset-2 hover:text-rules/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
-                    onClick={onOpenRules}
-                  >
-                    Åbn Regler
-                  </button>
-                </p>
-              </div>
-
-              <CropExclusionList
-                farmId={farmId}
-                simulationId={simulation.id}
-                excludedCodes={excludedCropCodes}
-                onToggle={toggleCrop}
-              />
-            </div>
-
-            {runError ? (
-              <LoadError className="whitespace-pre-wrap" message={runError} />
-            ) : null}
-          </>
-        )}
-
-        <DialogFooter>
-          {view === 'running' ? (
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              Luk
-            </Button>
-          ) : view === 'succeeded' ? (
-            <Button onClick={() => handleOpenChange(false)}>Luk</Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                Annuller
-              </Button>
-              <Button onClick={runOptimization}>Kør optimering</Button>
-            </>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-type YearlyOptimizeDialogProps = {
-  farmId: string
-  simulation: Simulation
-  fields: FieldRecord[]
-  open: boolean
-  onOpenChange: (open: boolean) => void
-}
-
-const YearlyOptimizeDialog = ({
-  farmId,
-  simulation,
-  fields,
-  open,
-  onOpenChange,
-}: YearlyOptimizeDialogProps) => {
-  const { run, view, runError, startRun } = useOptimizationDialogRun(
-    simulation.id,
-    'yearly',
-    open,
-  )
-  const [catchmentInputs, setCatchmentInputs] = useState<
-    Record<string, CatchmentYearlyInput>
-  >({})
-  const [db2SwingPct, setDb2SwingPct] = useState('')
-  const [excludedCropCodes, setExcludedCropCodes] = useState<Set<number>>(
-    new Set(),
-  )
-
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen) setExcludedCropCodes(new Set())
-    onOpenChange(nextOpen)
-  }
-
-  const toggleCrop = (code: number) => {
-    setExcludedCropCodes((current) => {
-      const next = new Set(current)
-      if (next.has(code)) next.delete(code)
-      else next.add(code)
-      return next
-    })
-  }
-
-  const { data: categories = [] } = useYearlyOptimizationCandidates(
-    farmId,
-    simulation.id,
-  )
-  const catchments = useCatchmentOptions(farmId, fields)
-  // Års-optimering has no saved constraint to read back (each run sends its
-  // own fresh caps), so the quota is always the default here - same udledningskvote
-  // as Regler/Optimér, kept in sync through the shared helper.
-  const catchmentQuota = effectiveMaxNLoadByCatchment(fields, [])
-
-  const catchmentInput = (key: string): CatchmentYearlyInput => {
-    if (catchmentInputs[key]) return catchmentInputs[key]
-    const quota = catchmentQuota.get(key)
-    return quota === undefined
-      ? DEFAULT_CATCHMENT_YEARLY_INPUT
-      : { sameForAllYears: true, uniform: String(quota), perYear: {} }
-  }
-
-  const updateCatchmentInput = (
-    key: string,
-    patch: Partial<CatchmentYearlyInput>,
-  ) => {
-    setCatchmentInputs((current) => ({
-      ...current,
-      [key]: { ...catchmentInput(key), ...patch },
-    }))
-  }
-
-  // Estimate, not a guarantee. Every candidate may be shifted.
-  const estimatedSeconds = useMemo(() => {
-    let totalShiftUnits = 0
-    for (const category of categories) {
-      for (const option of category.rotations) {
-        totalShiftUnits += option.activeLen
-      }
-    }
-    return fields.length * totalShiftUnits * 0.002
-  }, [fields.length, categories])
-
-  const runYearlyOptimization = () => {
-    const maxNLoadByCatchment: CatchmentYearlyNLoadCaps[] = catchments.map(
-      (catchment) => {
-        const key = catchmentKey(catchment.catchmentId)
-        const input = catchmentInput(key)
-        const maxNLoadByYear: Record<number, number> = {}
-        if (input.sameForAllYears) {
-          const trimmed = input.uniform.trim()
-          if (trimmed !== '') {
-            for (const year of ROTATION_CALENDAR_YEARS) {
-              maxNLoadByYear[year] = Number(trimmed)
-            }
-          }
-        } else {
-          for (const [year, value] of Object.entries(input.perYear)) {
-            const trimmed = value.trim()
-            if (trimmed !== '') {
-              maxNLoadByYear[Number(year)] = Number(trimmed)
-            }
-          }
-        }
-        return { catchmentId: catchment.catchmentId, maxNLoadByYear }
-      },
-    )
-    const trimmedSwing = db2SwingPct.trim()
-    startRun({
-      kind: 'yearly',
-      farmId,
-      simulationId: simulation.id,
-      input: {
-        maxNLoadByCatchment,
-        db2SwingPct: trimmedSwing === '' ? null : Number(trimmedSwing),
-        excludedCropCodes: Array.from(excludedCropCodes),
-      },
-      fieldsBefore: fields,
-    })
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Års-optimering - {simulation.name}</DialogTitle>
-          <DialogDescription>
-            Optimér med udledningsloft pr. kalenderår og en grænse for hvor
-            meget dækningsbidraget må svinge år til år. Alle sædskifter kan
-            rykkes frem eller tilbage i deres cyklus.
-          </DialogDescription>
-        </DialogHeader>
-
-        {run && view !== 'form' ? (
-          <OptimizationRunProgress run={run} />
-        ) : (
-          <>
-            <div className="flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <Info
-                className="mt-0.5 h-4 w-4 shrink-0 text-amber-700"
-                aria-hidden="true"
-              />
-              <p className="text-xs text-amber-900">
-                Indstillingerne herunder gælder <strong>kun denne kørsel</strong> og
-                gemmes ikke på simuleringen - de nulstilles, når dialogen lukkes, og
-                vises derfor ikke under Regler. Noter dem, hvis du skal kunne
-                gentage kørslen.
-              </p>
-            </div>
-
-            <div className="space-y-5">
-              <div className="space-y-3">
-                <Label>Maks. tilladt udledning pr. år, pr. kystvandopland</Label>
-                {catchments.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Ingen marker med et kystvandopland i denne simulering.
-                  </p>
-                ) : (
-                  catchments.map((catchment) => {
-                    const key = catchmentKey(catchment.catchmentId)
-                    const input = catchmentInput(key)
-                    return (
-                      <div key={key} className="space-y-2 rounded border p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">
-                            {catchment.label}
-                          </span>
-                          <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <input
-                              type="checkbox"
-                              checked={input.sameForAllYears}
-                              onChange={(event) =>
-                                updateCatchmentInput(key, {
-                                  sameForAllYears: event.target.checked,
-                                })
-                              }
-                            />
-                            Samme grænse for alle år
-                          </label>
-                        </div>
-                        {input.sameForAllYears ? (
-                          <div className="space-y-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              value={input.uniform}
-                              placeholder="Ingen grænse"
-                              onChange={(event) =>
-                                updateCatchmentInput(key, {
-                                  uniform: event.target.value,
-                                })
-                              }
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              kg N, gælder hvert år
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="grid gap-2 sm:grid-cols-4">
-                            {ROTATION_CALENDAR_YEARS.map((year) => (
-                              <label key={year} className="space-y-1 text-sm">
-                                <span className="text-xs text-muted-foreground">
-                                  {year}
-                                </span>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  value={input.perYear[year] ?? ''}
-                                  placeholder="Ingen grænse"
-                                  onChange={(event) =>
-                                    updateCatchmentInput(key, {
-                                      perYear: {
-                                        ...input.perYear,
-                                        [year]: event.target.value,
-                                      },
-                                    })
-                                  }
-                                />
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="yearly-db-swing">
-                  Maks. udsving i DB2 mellem år
-                </Label>
-                <Input
-                  id="yearly-db-swing"
-                  type="number"
-                  min="0"
-                  value={db2SwingPct}
-                  placeholder="Ingen grænse"
-                  onChange={(event) => setDb2SwingPct(event.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  % - intet års samlede DB2 må afvige mere end dette fra
-                  gennemsnittet af simuleringens år
-                </p>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Alle sædskifter kan forskydes · {fields.length} marker · ~
-                {estimatedSeconds < 1 ? '<1' : Math.round(estimatedSeconds)} sek.
-                (estimat, ikke en garanti)
-              </p>
-
-              <CropExclusionList
-                farmId={farmId}
-                simulationId={simulation.id}
-                excludedCodes={excludedCropCodes}
-                onToggle={toggleCrop}
-              />
-            </div>
-
-            {runError ? (
-              <LoadError className="whitespace-pre-wrap" message={runError} />
-            ) : null}
-          </>
-        )}
-
-        <DialogFooter>
-          {view === 'running' ? (
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              Luk
-            </Button>
-          ) : view === 'succeeded' ? (
-            <Button onClick={() => handleOpenChange(false)}>Luk</Button>
-          ) : (
-            <>
-              <Button variant="outline" onClick={() => handleOpenChange(false)}>
-                Annuller
-              </Button>
-              <Button onClick={runYearlyOptimization}>Kør års-optimering</Button>
-            </>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   )
 }

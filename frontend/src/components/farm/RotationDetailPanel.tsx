@@ -15,7 +15,7 @@ type RotationDetailPanelProps = {
   simulationId: string
   fieldId: string
   // The field's CURRENT assigned candidate (from the already-fresh field list).
-  // The panel can remain open during an "Optimér" or "Års-optimering" run, and
+  // The panel can remain open during an "Optimér" run, and
   // SWR reloads candidate detail only on mount/remount, not automatically when
   // the field receives a new assignment. A change in this value triggers the
   // reload without revalidating all previously opened panels' keys at once

@@ -7,10 +7,17 @@ import {
 
 export type OptimizationKind = 'optimize' | 'yearly'
 
+// The two kinds differ in how the udledningskvote applies: to the average of
+// the simulation's years, or as a ceiling in each calendar year.
 export const OPTIMIZATION_KIND_LABELS: Record<OptimizationKind, string> = {
-  optimize: 'Optimering',
-  yearly: 'Års-optimering',
+  optimize: 'Gennemsnit for perioden',
+  yearly: 'Loft hvert år',
 }
+
+// "Optimering (loft hvert år)", so a run's status names the type it was
+// started with.
+export const optimizationRunName = (kind: OptimizationKind) =>
+  `Optimering (${OPTIMIZATION_KIND_LABELS[kind].toLowerCase()})`
 
 export const RUN_STATUS_LABELS: Record<OptimizationStatus, string> = {
   OPTIMAL: 'optimal løsning',

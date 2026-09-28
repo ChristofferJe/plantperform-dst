@@ -3,6 +3,7 @@ import type {
   FieldsSortDirection,
   FieldsSortState,
 } from '@/components/farm/field-list-state'
+import { perHa } from '@/lib/field-domain'
 
 const nameCollator = new Intl.Collator('da-DK', {
   numeric: true,
@@ -70,13 +71,14 @@ const comparePrimary = (
         catchmentLabel,
       )
     case 'db2':
-      return compareNumber(left.db2, right.db2, sort.direction)
     case 'nLoad':
-      return compareNumber(left.nLoad, right.nLoad, sort.direction)
     case 'leaching':
-      return compareNumber(left.leaching, right.leaching, sort.direction)
     case 'feedUnits':
-      return compareNumber(left.feedUnits, right.feedUnits, sort.direction)
+      return compareNullableNumber(
+        perHa(left[sort.key], left.areaHa),
+        perHa(right[sort.key], right.areaHa),
+        sort.direction,
+      )
     case 'nLoadQuotaKgN':
       return compareNullableNumber(
         left.nLoadQuotaKgN,

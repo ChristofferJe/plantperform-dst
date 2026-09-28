@@ -103,7 +103,7 @@ individual troubleshooting commands.
 ## Development checks
 
 ```bash
-cd backend && pixi run lint
+cd backend && pixi run test && pixi run lint
 cd frontend && npm run lint && npm run build
 ```
 

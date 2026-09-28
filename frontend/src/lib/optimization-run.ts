@@ -1,5 +1,9 @@
 import type { FieldRecord, OptimizationStatus } from '@/api/types'
-import { computeFieldTotals, rotationsEqual } from '@/lib/field-domain'
+import {
+  computeFieldTotals,
+  rotationsEqual,
+  type FieldTotals,
+} from '@/lib/field-domain'
 
 export type OptimizationKind = 'optimize' | 'yearly'
 
@@ -36,10 +40,8 @@ export type OptimizationChanges = {
   // Fields whose sædskifte or its placement in the years changed, as returned
   // by the run.
   changedFields: FieldRecord[]
-  db2Before: number
-  db2After: number
-  nLoadBefore: number
-  nLoadAfter: number
+  totalsBefore: FieldTotals
+  totalsAfter: FieldTotals
 }
 
 export const summarizeOptimizationChanges = (
@@ -55,15 +57,10 @@ export const summarizeOptimizationChanges = (
       !rotationsEqual(previous.cropRotation, field.cropRotation)
     )
   })
-  const totalsBefore = computeFieldTotals(before, true)
-  const totalsAfter = computeFieldTotals(after, true)
-
   return {
     changedFields,
-    db2Before: totalsBefore.db2,
-    db2After: totalsAfter.db2,
-    nLoadBefore: totalsBefore.nLoad,
-    nLoadAfter: totalsAfter.nLoad,
+    totalsBefore: computeFieldTotals(before, true),
+    totalsAfter: computeFieldTotals(after, true),
   }
 }
 

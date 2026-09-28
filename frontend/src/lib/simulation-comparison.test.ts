@@ -21,7 +21,6 @@ import {
   describeComparisonVerdict,
   describeCurveLegend,
   describeFeedUnitRequirement,
-  formatDkkDelta,
   formatFeedUnits,
   formatKgN,
   formatYearsDelta,
@@ -430,11 +429,11 @@ describe('summarizeColumnQuota', () => {
 describe('rankByBalance', () => {
   it('puts the fewest years over the quota first and the highest DB2 among equals', () => {
     const ranked = rankByBalance([
-      { key: 'a', db2: 500, yearsOver: 2 },
-      { key: 'b', db2: 300, yearsOver: 0 },
-      { key: 'c', db2: 900, yearsOver: 2 },
-      { key: 'd', db2: 400, yearsOver: 0 },
-      { key: 'e', db2: 1000, yearsOver: null },
+      { key: 'a', db2PerHa: 500, yearsOver: 2 },
+      { key: 'b', db2PerHa: 300, yearsOver: 0 },
+      { key: 'c', db2PerHa: 900, yearsOver: 2 },
+      { key: 'd', db2PerHa: 400, yearsOver: 0 },
+      { key: 'e', db2PerHa: 1000, yearsOver: null },
     ])
     expect(ranked.map(({ key }) => key)).toEqual(['d', 'b', 'c', 'a', 'e'])
   })
@@ -442,11 +441,11 @@ describe('rankByBalance', () => {
 
 describe('sortComparison', () => {
   const candidates = [
-    { key: 'a', db2: 500, nLoad: 30, yearsOver: 2 },
-    { key: 'b', db2: 300, nLoad: 10, yearsOver: 0 },
-    { key: 'c', db2: 900, nLoad: 20, yearsOver: 2 },
-    { key: 'd', db2: 400, nLoad: 40, yearsOver: 0 },
-    { key: 'e', db2: null, nLoad: null, yearsOver: null },
+    { key: 'a', db2PerHa: 500, nLoadPerHa: 30, yearsOver: 2 },
+    { key: 'b', db2PerHa: 300, nLoadPerHa: 10, yearsOver: 0 },
+    { key: 'c', db2PerHa: 900, nLoadPerHa: 20, yearsOver: 2 },
+    { key: 'd', db2PerHa: 400, nLoadPerHa: 40, yearsOver: 0 },
+    { key: 'e', db2PerHa: null, nLoadPerHa: null, yearsOver: null },
   ]
   const keys = (sort: ComparisonSort) =>
     sortComparison(candidates, sort).map(({ key }) => key)
@@ -520,15 +519,6 @@ describe('describeCurveLegend', () => {
   })
 })
 
-describe('formatDkkDelta', () => {
-  it('signs the difference in the unit of the larger figure', () => {
-    expect(formatDkkDelta(249_000, 572_000)).toBe('+249 t.kr')
-    expect(formatDkkDelta(877_000, 1_200_000)).toBe('+0,9 mio. kr')
-    expect(formatDkkDelta(-737_000, 586_000)).toBe('−737 t.kr')
-    expect(formatDkkDelta(0, 323_000)).toBe('±0 t.kr')
-  })
-})
-
 describe('formatYearsDelta', () => {
   it('signs the change in years over the quota', () => {
     expect(formatYearsDelta(-6)).toBe('−6 år')
@@ -538,8 +528,8 @@ describe('formatYearsDelta', () => {
 })
 
 describe('describeComparisonVerdict', () => {
-  const historyDb2 = 323_000
-  const test3 = { title: 'Test3', db2: 1_200_000, yearsOver: 0 }
+  const historyDb2PerHa = 1_000
+  const test3 = { title: 'Test3', db2PerHa: 1_250, yearsOver: 0 }
 
   it('names the only simulation under the quota and what it earns more', () => {
     expect(
@@ -547,10 +537,10 @@ describe('describeComparisonVerdict', () => {
         best: test3,
         compliantCount: 1,
         simulationCount: 3,
-        historyDb2,
+        historyDb2PerHa,
       }),
     ).toBe(
-      'Test3 giver den bedste balance: eneste simulering under kvoten i alle år og alle oplande, og 0,9 mio. kr mere end afgrødehistorikken.',
+      'Test3 giver den bedste balance: eneste simulering under kvoten i alle år og alle oplande, og 250 kr/ha mere end afgrødehistorikken.',
     )
   })
 
@@ -560,20 +550,20 @@ describe('describeComparisonVerdict', () => {
         best: test3,
         compliantCount: 2,
         simulationCount: 3,
-        historyDb2,
+        historyDb2PerHa,
       }),
     ).toBe(
-      'Test3 giver den bedste balance: højeste dækningsbidrag af dem, der er under kvoten i alle år og alle oplande, og 0,9 mio. kr mere end afgrødehistorikken.',
+      'Test3 giver den bedste balance: højeste dækningsbidrag af dem, der er under kvoten i alle år og alle oplande, og 250 kr/ha mere end afgrødehistorikken.',
     )
   })
 
   it('names the one closest to the quota when none keeps it', () => {
     expect(
       describeComparisonVerdict({
-        best: { title: 'Test2', db2: 1_300_000, yearsOver: 4 },
+        best: { title: 'Test2', db2PerHa: 1_300, yearsOver: 4 },
         compliantCount: 0,
         simulationCount: 3,
-        historyDb2,
+        historyDb2PerHa,
       }),
     ).toBe(
       'Ingen simulering holder kvoten i alle år. Test2 kommer tættest på med 4 år over kvoten.',
@@ -586,17 +576,17 @@ describe('describeComparisonVerdict', () => {
         best: test3,
         compliantCount: 1,
         simulationCount: 1,
-        historyDb2,
+        historyDb2PerHa,
       }),
     ).toBe(
-      'Test3 holder kvoten i alle år og alle oplande og giver 0,9 mio. kr mere end afgrødehistorikken.',
+      'Test3 holder kvoten i alle år og alle oplande og giver 250 kr/ha mere end afgrødehistorikken.',
     )
     expect(
       describeComparisonVerdict({
         best: { ...test3, yearsOver: 3 },
         compliantCount: 0,
         simulationCount: 1,
-        historyDb2,
+        historyDb2PerHa,
       }),
     ).toBe('Test3 holder ikke kvoten i alle år: 3 år over kvoten.')
   })
@@ -607,7 +597,7 @@ describe('describeComparisonVerdict', () => {
         best: { ...test3, yearsOver: null },
         compliantCount: 0,
         simulationCount: 1,
-        historyDb2,
+        historyDb2PerHa,
       }),
     ).toBeNull()
   })

@@ -8,14 +8,18 @@ import { useElapsed } from '@/hooks/use-elapsed'
 import {
   fieldTitle,
   formatCompactDkk,
+  formatPerHa,
   formatSigned,
   formatWholeNumber,
+  perHaFigure,
+  totalsPerHa,
 } from '@/lib/field-domain'
 import {
   formatElapsed,
   formatFieldNameList,
   OPTIMIZATION_KIND_LABELS,
   RUN_STATUS_LABELS,
+  type OptimizationChanges,
 } from '@/lib/optimization-run'
 import { cn } from '@/lib/utils'
 
@@ -65,6 +69,56 @@ const RunningDetails = ({ run }: OptimizationRunProgressProps) => {
   )
 }
 
+type ChangeRowProps = {
+  label: string
+  metric: 'db2' | 'nLoad'
+  changes: OptimizationChanges
+  formatTotal: (value: number) => string
+}
+
+const ChangeRow = ({ label, metric, changes, formatTotal }: ChangeRowProps) => {
+  const { totalsBefore, totalsAfter } = changes
+  const before = totalsPerHa(totalsBefore, metric)
+  const after = totalsPerHa(totalsAfter, metric)
+  if (
+    before === null ||
+    after === null ||
+    totalsBefore.calculatedCount !== totalsAfter.calculatedCount
+  ) {
+    const { value, total } = perHaFigure(
+      after,
+      metric,
+      formatTotal(totalsAfter[metric]),
+    )
+    return (
+      <>
+        <dt className="text-muted-foreground">{label}</dt>
+        <dd className="col-span-2">
+          {value}
+          {total ? (
+            <span className="block text-xs text-muted-foreground">{total}</span>
+          ) : null}
+        </dd>
+      </>
+    )
+  }
+  const totals = `${formatTotal(totalsBefore[metric])} → ${formatTotal(totalsAfter[metric])}`
+  return (
+    <>
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd>
+        {formatPerHa(before, metric)} → {formatPerHa(after, metric)}
+        <span className="block text-xs text-muted-foreground">
+          {totals} i alt
+        </span>
+      </dd>
+      <dd className="text-muted-foreground">
+        {formatSigned(after - before, (value) => formatPerHa(value, metric))}
+      </dd>
+    </>
+  )
+}
+
 const SucceededDetails = ({
   run,
 }: {
@@ -95,28 +149,18 @@ const SucceededDetails = ({
             {formatFieldNameList(changes.changedFields.map(fieldTitle))}.
           </p>
           <dl className="mx-auto grid w-fit grid-cols-[auto_auto_auto] gap-x-4 gap-y-1 pt-2 text-left text-sm tabular-nums">
-            <dt className="text-muted-foreground">DB2</dt>
-            <dd>
-              {formatCompactDkk(changes.db2Before)} →{' '}
-              {formatCompactDkk(changes.db2After)}
-            </dd>
-            <dd className="text-muted-foreground">
-              {formatSigned(
-                changes.db2After - changes.db2Before,
-                formatCompactDkk,
-              )}
-            </dd>
-            <dt className="text-muted-foreground">Udledning</dt>
-            <dd>
-              {formatWholeNumber(changes.nLoadBefore)} →{' '}
-              {formatWholeNumber(changes.nLoadAfter)} kg N
-            </dd>
-            <dd className="text-muted-foreground">
-              {formatSigned(
-                changes.nLoadAfter - changes.nLoadBefore,
-                (value) => `${formatWholeNumber(value)} kg N`,
-              )}
-            </dd>
+            <ChangeRow
+              label="DB2"
+              metric="db2"
+              changes={changes}
+              formatTotal={formatCompactDkk}
+            />
+            <ChangeRow
+              label="Udledning"
+              metric="nLoad"
+              changes={changes}
+              formatTotal={(value) => `${formatWholeNumber(value)} kg N`}
+            />
           </dl>
         </>
       )}

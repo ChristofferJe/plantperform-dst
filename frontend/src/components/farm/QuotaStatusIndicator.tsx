@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
 
 import { QUOTA_STATUS_STYLES, type QuotaStatusLevel } from '@/lib/field-domain'
+import {
+  describeCatchmentYearStatus,
+  type CatchmentYearStatus,
+} from '@/lib/simulation-overview'
 import { cn } from '@/lib/utils'
 
 type QuotaStatusIndicatorProps = {
@@ -24,4 +28,26 @@ export const QuotaStatusIndicator = ({
     />
     <span>{children}</span>
   </span>
+)
+
+type CatchmentYearStatusIndicatorProps = {
+  status: CatchmentYearStatus
+  className?: string
+}
+
+export const CatchmentYearStatusIndicator = ({
+  status,
+  className,
+}: CatchmentYearStatusIndicatorProps) => (
+  <QuotaStatusIndicator
+    level={status.level}
+    className={cn(
+      'gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-normal',
+      QUOTA_STATUS_STYLES[status.level].surface,
+      QUOTA_STATUS_STYLES[status.level].text,
+      className,
+    )}
+  >
+    {describeCatchmentYearStatus(status)}
+  </QuotaStatusIndicator>
 )

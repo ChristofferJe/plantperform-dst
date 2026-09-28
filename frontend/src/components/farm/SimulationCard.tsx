@@ -6,7 +6,7 @@ import { useOptimizationRun } from '@/api/optimization-runs'
 import type { FieldRecord, Simulation } from '@/api/types'
 import { useCatchmentLabel } from '@/components/farm/catchment-options'
 import { OptimizationRunElapsed } from '@/components/farm/OptimizationRunStatus'
-import { QuotaStatusIndicator } from '@/components/farm/QuotaStatusIndicator'
+import { CatchmentYearStatusIndicator } from '@/components/farm/QuotaStatusIndicator'
 import type { FarmInspectorMode } from '@/components/farm/types'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -20,7 +20,6 @@ import {
   formatWholeNumber,
   isFieldLocked,
   NUM_ROTATION_YEARS,
-  QUOTA_STATUS_STYLES,
   REAL_HISTORY_START_CALENDAR_YEAR,
   resolveFarmQuota,
   summarizeCatchmentYearTotals,
@@ -28,7 +27,6 @@ import {
   type FieldTotals,
 } from '@/lib/field-domain'
 import {
-  describeCatchmentYearStatus,
   describeDb2Delta,
   describeFieldChanges,
   describeNLoadDelta,
@@ -176,29 +174,17 @@ const CatchmentStatusList = ({
 
   return (
     <ul className="space-y-1.5">
-      {statuses.map(({ status, label }) => {
-        const style = QUOTA_STATUS_STYLES[status.level]
-        return (
-          <li
-            key={status.catchmentId}
-            className="flex items-center justify-between gap-3 text-[13px]"
-          >
-            <span className="max-w-[45%] shrink-0 truncate" title={label}>
-              {label}
-            </span>
-            <QuotaStatusIndicator
-              level={status.level}
-              className={cn(
-                'min-w-0 gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium whitespace-normal',
-                style.surface,
-                style.text,
-              )}
-            >
-              {describeCatchmentYearStatus(status)}
-            </QuotaStatusIndicator>
-          </li>
-        )
-      })}
+      {statuses.map(({ status, label }) => (
+        <li
+          key={status.catchmentId}
+          className="flex items-center justify-between gap-3 text-[13px]"
+        >
+          <span className="max-w-[45%] shrink-0 truncate" title={label}>
+            {label}
+          </span>
+          <CatchmentYearStatusIndicator status={status} className="min-w-0" />
+        </li>
+      ))}
     </ul>
   )
 }

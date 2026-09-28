@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import {
   BEST_TEXT_CLASS,
   columnCellClass,
-  columnFigure,
   completeFigure,
   highlightHandlers,
   TABLE_HEAD_CLASS,
@@ -20,12 +19,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { formatCompactDkk, QUOTA_STATUS_STYLES } from '@/lib/field-domain'
+import {
+  formatCompactDkk,
+  formatPerHa,
+  QUOTA_STATUS_STYLES,
+  totalsPerHa,
+} from '@/lib/field-domain'
 import {
   bestColumnIndex,
   COMPARISON_PERIOD,
   COMPARISON_SORT_LABELS,
-  formatDkkDelta,
   formatKgN,
   formatYears,
   formatYearsDelta,
@@ -33,7 +36,7 @@ import {
   type BestDirection,
   type ComparisonSort,
 } from '@/lib/simulation-comparison'
-import { describeNLoadDelta } from '@/lib/simulation-overview'
+import { describeDb2Delta, describeNLoadDelta } from '@/lib/simulation-overview'
 import { cn } from '@/lib/utils'
 
 type Metric = {
@@ -42,6 +45,7 @@ type Metric = {
   term?: GlossaryTerm
   valueOf: (column: ComparedColumn) => number | null
   format: (value: number) => string
+  total?: (column: ComparedColumn) => string
   describeDelta: (value: number, history: number) => string
   direction: BestDirection
   bestWord: string
@@ -52,9 +56,10 @@ const METRICS: Metric[] = [
   {
     key: 'db2',
     label: 'Dækningsbidrag pr. år',
-    valueOf: (column) => columnFigure(column, column.totals.db2),
-    format: formatCompactDkk,
-    describeDelta: (value, history) => formatDkkDelta(value - history, value),
+    valueOf: (column) => totalsPerHa(column.totals, 'db2'),
+    format: (value) => formatPerHa(value, 'db2'),
+    total: (column) => `${formatCompactDkk(column.totals.db2)} i alt`,
+    describeDelta: (value, history) => describeDb2Delta(value, history).text,
     direction: 'highest',
     bestWord: 'højest',
     barClass: 'bg-primary',
@@ -63,8 +68,9 @@ const METRICS: Metric[] = [
     key: 'nLoad',
     label: 'Udledning pr. år',
     term: 'nLoad',
-    valueOf: (column) => columnFigure(column, column.totals.nLoad),
-    format: formatKgN,
+    valueOf: (column) => totalsPerHa(column.totals, 'nLoad'),
+    format: (value) => formatPerHa(value, 'nLoad'),
+    total: (column) => `${formatKgN(column.totals.nLoad)} i alt`,
     describeDelta: (value, history) => describeNLoadDelta(value, history).text,
     direction: 'lowest',
     bestWord: 'lavest',
@@ -122,6 +128,11 @@ const MetricCell = ({
       >
         {metric.format(value)}
       </span>
+      {metric.total ? (
+        <span className="block text-xs text-muted-foreground tabular-nums">
+          {metric.total(column)}
+        </span>
+      ) : null}
       <span
         aria-hidden="true"
         className={cn(

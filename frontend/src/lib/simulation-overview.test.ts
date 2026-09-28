@@ -244,44 +244,44 @@ describe('describeCatchmentYearStatus', () => {
 })
 
 describe('describeDb2Delta', () => {
-  it('shows a gain in kroner and percent as better', () => {
-    expect(describeDb2Delta(1_045_000, 1_000_000)).toEqual({
-      text: '+45 t.kr (4,5 %)',
+  it('shows a gain in kroner per hectare and percent as better', () => {
+    expect(describeDb2Delta(1_045, 1_000)).toEqual({
+      text: '+45 kr/ha (4,5 %)',
       tone: 'better',
     })
   })
 
   it('shows a loss as worse', () => {
-    expect(describeDb2Delta(970_000, 1_000_000)).toEqual({
-      text: '−30 t.kr (3 %)',
+    expect(describeDb2Delta(970, 1_000)).toEqual({
+      text: '−30 kr/ha (3 %)',
       tone: 'worse',
     })
   })
 
   it('rounds the percent to whole numbers from 10 %', () => {
-    expect(describeDb2Delta(1_123_400, 1_000_000)).toEqual({
-      text: '+123 t.kr (12 %)',
+    expect(describeDb2Delta(1_123.4, 1_000)).toEqual({
+      text: '+123 kr/ha (12 %)',
       tone: 'better',
     })
   })
 
   it('leaves out a percent that rounds to zero', () => {
-    expect(describeDb2Delta(1_000_400, 1_000_000)).toEqual({
-      text: '+400 kr',
+    expect(describeDb2Delta(100_004, 100_000)).toEqual({
+      text: '+4 kr/ha',
       tone: 'better',
     })
   })
 
   it('leaves out the percent when the crop history has no DB2', () => {
     expect(describeDb2Delta(500, 0)).toEqual({
-      text: '+500 kr',
+      text: '+500 kr/ha',
       tone: 'better',
     })
   })
 
   it('is the same when nothing changed', () => {
-    expect(describeDb2Delta(1_000_000, 1_000_000)).toEqual({
-      text: '±0 kr',
+    expect(describeDb2Delta(1_000, 1_000)).toEqual({
+      text: '±0 kr/ha',
       tone: 'same',
     })
   })
@@ -289,22 +289,22 @@ describe('describeDb2Delta', () => {
 
 describe('describeNLoadDelta', () => {
   it('shows less N load as better', () => {
-    expect(describeNLoadDelta(880, 1_000)).toEqual({
-      text: '−120 kg N',
+    expect(describeNLoadDelta(8.8, 10)).toEqual({
+      text: '−1,2 kg N/ha',
       tone: 'better',
     })
   })
 
   it('shows more N load as worse', () => {
-    expect(describeNLoadDelta(1_035, 1_000)).toEqual({
-      text: '+35 kg N',
+    expect(describeNLoadDelta(10.4, 10)).toEqual({
+      text: '+0,4 kg N/ha',
       tone: 'worse',
     })
   })
 
-  it('treats a difference below one kilogram as the same', () => {
-    expect(describeNLoadDelta(1_000.3, 1_000)).toEqual({
-      text: '±0 kg N',
+  it('treats a difference below 0.05 kg N per hectare as the same', () => {
+    expect(describeNLoadDelta(10.03, 10)).toEqual({
+      text: '±0 kg N/ha',
       tone: 'same',
     })
   })

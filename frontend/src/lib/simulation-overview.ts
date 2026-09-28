@@ -1,10 +1,9 @@
 import type { FieldRecord } from '@/api/types'
 import {
-  formatCompactDkk,
   formatFieldCount,
   formatNumber,
+  formatPerHa,
   formatSigned,
-  formatWholeNumber,
   groupFieldsByCatchment,
   QUOTA_STATUS_NEAR_THRESHOLD,
   ROTATION_START_CALENDAR_YEAR,
@@ -150,15 +149,15 @@ const toneOf = (difference: number, higherIsBetter: boolean): DeltaTone => {
 }
 
 export const describeDb2Delta = (
-  value: number,
-  baseline: number,
+  valuePerHa: number,
+  baselinePerHa: number,
 ): KeyFigureDelta => {
-  const difference = Math.round(value - baseline)
-  const amount = formatSigned(difference, formatCompactDkk)
+  const difference = Math.round(valuePerHa - baselinePerHa)
+  const amount = formatSigned(difference, (value) => formatPerHa(value, 'db2'))
   const percent =
-    baseline === 0
+    baselinePerHa === 0
       ? 0
-      : roundPercent((Math.abs(difference) / Math.abs(baseline)) * 100)
+      : roundPercent((Math.abs(difference) / Math.abs(baselinePerHa)) * 100)
   return {
     text: percent > 0 ? `${amount} (${formatNumber(percent)} %)` : amount,
     tone: toneOf(difference, true),
@@ -166,12 +165,12 @@ export const describeDb2Delta = (
 }
 
 export const describeNLoadDelta = (
-  value: number,
-  baseline: number,
+  valuePerHa: number,
+  baselinePerHa: number,
 ): KeyFigureDelta => {
-  const difference = Math.round(value - baseline)
+  const difference = Math.round((valuePerHa - baselinePerHa) * 10) / 10
   return {
-    text: `${formatSigned(difference, formatWholeNumber)} kg N`,
+    text: formatSigned(difference, (value) => formatPerHa(value, 'nLoad')),
     tone: toneOf(difference, false),
   }
 }

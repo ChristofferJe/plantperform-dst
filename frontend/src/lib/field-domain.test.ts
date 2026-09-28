@@ -6,6 +6,7 @@ import {
   emptyMeasures,
   fieldFigure,
   formatPerHa,
+  formatSigned,
   totalsFigure,
   totalsPerHa,
 } from '@/lib/field-domain'
@@ -115,5 +116,15 @@ describe('formatPerHa', () => {
     expect(formatPerHa(6123.4, 'feedUnits')).toBe('6.123 FE/ha')
     expect(formatPerHa(0.71, 'nLoad')).toBe('0,7 kg N/ha')
     expect(formatPerHa(3.64, 'leaching')).toBe('3,6 kg N/ha')
+  })
+})
+
+describe('formatSigned', () => {
+  it('signs only a change that shows', () => {
+    const kronerPerHa = (value: number) => formatPerHa(value, 'db2')
+    expect(formatSigned(45.2, kronerPerHa)).toBe('+45 kr/ha')
+    expect(formatSigned(-45.2, kronerPerHa)).toBe('−45 kr/ha')
+    expect(formatSigned(0.3, kronerPerHa)).toBe('±0 kr/ha')
+    expect(formatSigned(-0.3, kronerPerHa)).toBe('±0 kr/ha')
   })
 })

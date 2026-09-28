@@ -21,11 +21,14 @@ import {
   formatWholeNumber,
   isFieldLocked,
   NUM_ROTATION_YEARS,
+  perHaFigure,
   REAL_HISTORY_START_CALENDAR_YEAR,
   resolveFarmQuota,
   summarizeCatchmentYearTotals,
+  totalsPerHa,
   type FarmQuota,
   type FieldTotals,
+  type PerHaFigure,
 } from '@/lib/field-domain'
 import { comparisonAvailability } from '@/lib/simulation-comparison'
 import {
@@ -97,16 +100,21 @@ const CardShell = ({
 
 type KeyFigureProps = {
   label: string
-  value: string
+  figure: PerHaFigure
   note?: ReactNode
 }
 
-const KeyFigure = ({ label, value, note }: KeyFigureProps) => (
+const KeyFigure = ({ label, figure, note }: KeyFigureProps) => (
   <div className="min-w-0">
     <p className="text-xs text-muted-foreground">{label}</p>
     <p className="mt-1 font-display text-2xl leading-none tabular-nums">
-      {value}
+      {figure.value}
     </p>
+    {figure.total ? (
+      <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+        {figure.total}
+      </p>
+    ) : null}
     {note ? <p className="mt-1.5 text-xs tabular-nums">{note}</p> : null}
   </div>
 )
@@ -234,11 +242,19 @@ export const HistoryCard = ({
       <div className="grid grid-cols-2 gap-4">
         <KeyFigure
           label="Dækningsbidrag pr. år"
-          value={formatCompactDkk(quota.totals.db2)}
+          figure={perHaFigure(
+            totalsPerHa(quota.totals, 'db2'),
+            'db2',
+            formatCompactDkk(quota.totals.db2),
+          )}
         />
         <KeyFigure
           label="Udledning pr. år"
-          value={`${formatWholeNumber(quota.totals.nLoad)} kg N`}
+          figure={perHaFigure(
+            totalsPerHa(quota.totals, 'nLoad'),
+            'nLoad',
+            `${formatWholeNumber(quota.totals.nLoad)} kg N`,
+          )}
           note={
             quota.quotaKgN !== null && quota.quotaKgN > 0 ? (
               <span className="text-muted-foreground">
@@ -274,28 +290,34 @@ const SimulationFigures = ({
 }: SimulationFiguresProps) => {
   const comparable =
     totals.uncalculatedCount === 0 && history.totals.calculatedCount > 0
+  const db2PerHa = totalsPerHa(totals, 'db2')
+  const historyDb2PerHa = totalsPerHa(history.totals, 'db2')
+  const nLoadPerHa = totalsPerHa(totals, 'nLoad')
+  const historyNLoadPerHa = totalsPerHa(history.totals, 'nLoad')
 
   return (
     <>
       <div className="grid grid-cols-2 gap-4">
         <KeyFigure
           label="Dækningsbidrag pr. år"
-          value={formatCompactDkk(totals.db2)}
+          figure={perHaFigure(db2PerHa, 'db2', formatCompactDkk(totals.db2))}
           note={
-            comparable ? (
-              <DeltaNote
-                delta={describeDb2Delta(totals.db2, history.totals.db2)}
-              />
+            comparable && db2PerHa !== null && historyDb2PerHa !== null ? (
+              <DeltaNote delta={describeDb2Delta(db2PerHa, historyDb2PerHa)} />
             ) : undefined
           }
         />
         <KeyFigure
           label="Udledning pr. år"
-          value={`${formatWholeNumber(totals.nLoad)} kg N`}
+          figure={perHaFigure(
+            nLoadPerHa,
+            'nLoad',
+            `${formatWholeNumber(totals.nLoad)} kg N`,
+          )}
           note={
-            comparable ? (
+            comparable && nLoadPerHa !== null && historyNLoadPerHa !== null ? (
               <DeltaNote
-                delta={describeNLoadDelta(totals.nLoad, history.totals.nLoad)}
+                delta={describeNLoadDelta(nLoadPerHa, historyNLoadPerHa)}
               />
             ) : undefined
           }

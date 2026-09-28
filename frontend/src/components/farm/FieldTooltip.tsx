@@ -2,11 +2,12 @@ import { Fragment, type ReactNode } from 'react'
 
 import type { FieldRecord } from '@/api/types'
 import {
-  formatCompactDkk,
+  fieldFigure,
   formatNumber,
   formatQuotaAmount,
   formatWholeNumber,
   getFieldQuotaStatus,
+  isFieldCalculated,
   QUOTA_STATUS_STYLES,
   type QuotaStatusLevel,
 } from '@/lib/field-domain'
@@ -71,19 +72,19 @@ const buildRows = (
   const rows: TooltipRow[] = []
   if (field) {
     const status = getFieldQuotaStatus(field, isSimulationView)
-    const calculated = status.level !== 'uncalculated'
-    const perHaNote = (key: 'nLoad' | 'db2') => {
-      const description =
-        colorBy === key
-          ? describeSpecValue(
-              COLOR_SPECS[key],
-              rawSpecValue(COLOR_SPECS[key], hovered),
-            )
-          : null
-      return description ? (
-        <span className="font-normal text-muted-foreground"> {description}</span>
+    const calculated = isFieldCalculated(field, isSimulationView)
+    const note = (text: string | null | undefined) =>
+      text ? (
+        <span className="font-normal text-muted-foreground"> {text}</span>
       ) : null
-    }
+    const nLoadNote =
+      colorBy === 'nLoad'
+        ? describeSpecValue(
+            COLOR_SPECS.nLoad,
+            rawSpecValue(COLOR_SPECS.nLoad, hovered),
+          )
+        : null
+    const db2Figure = fieldFigure(field, 'db2')
     rows.push({
       key: 'nLoad',
       label: 'Udledning',
@@ -91,7 +92,7 @@ const buildRows = (
       value: calculated ? (
         <>
           {formatQuotaAmount(status.nLoad, status.quotaKgn)}
-          {perHaNote('nLoad')}
+          {note(nLoadNote)}
         </>
       ) : (
         'ikke beregnet'
@@ -102,8 +103,8 @@ const buildRows = (
       label: 'DB2',
       value: calculated ? (
         <>
-          {formatCompactDkk(field.db2)}
-          {perHaNote('db2')}
+          {db2Figure.value}
+          {note(db2Figure.total)}
         </>
       ) : (
         '-'

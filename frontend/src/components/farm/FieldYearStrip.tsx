@@ -15,8 +15,8 @@ import {
 import { cropGroupFor, shortCropName } from '@/lib/crop-groups'
 import {
   CURRENT_CALENDAR_YEAR,
-  formatCompactDkk,
-  formatNumber,
+  formatPerHa,
+  perHaUnit,
   yearNLoadKgHa,
 } from '@/lib/field-domain'
 import { cn } from '@/lib/utils'
@@ -37,21 +37,20 @@ const metricValue = (
 ): number => {
   if (metric === 'leaching') return yearValue.leachingKgNHa
   if (metric === 'nLoad') {
-    return (
-      yearNLoadKgHa(yearValue.leachingKgNHa, field.retention) * field.areaHa
-    )
+    return yearNLoadKgHa(yearValue.leachingKgNHa, field.retention)
   }
-  return yearValue.dbDkkHa * field.areaHa
+  return yearValue.dbDkkHa
 }
 
 const describeMetric = (metric: YearMetric, value: number): string => {
-  if (metric === 'db2') return `DB2 ${formatCompactDkk(value)}`
-  if (metric === 'leaching') return `Udvaskning ${formatNumber(value)} kg N/ha`
-  return `Udledning ${formatNumber(value)} kg N`
+  if (metric === 'db2') return `DB2 ${formatPerHa(value, 'db2')}`
+  if (metric === 'leaching') {
+    return `Udvaskning ${formatPerHa(value, 'leaching')}`
+  }
+  return `Udledning ${formatPerHa(value, 'nLoad')}`
 }
 
 type ColumnScale = {
-  divisor: number
   unit: string
   maximumFractionDigits: number
 }
@@ -64,25 +63,16 @@ const columnScale = (
     0,
     ...values.flatMap((value) => (value === null ? [] : [Math.abs(value)])),
   )
-  if (metric !== 'db2') {
-    return {
-      divisor: 1,
-      unit: metric === 'nLoad' ? 'kg N' : 'kg N/ha',
-      maximumFractionDigits: maxAbs >= 100 ? 0 : 1,
-    }
-  }
-  const divisor = maxAbs >= 999_500 ? 1_000_000 : maxAbs >= 999.5 ? 1_000 : 1
   return {
-    divisor,
-    unit: divisor === 1_000_000 ? 'mio. kr' : divisor === 1_000 ? 't.kr' : 'kr',
-    maximumFractionDigits: maxAbs / divisor < 10 ? 1 : 0,
+    unit: perHaUnit(metric),
+    maximumFractionDigits: metric === 'db2' || maxAbs >= 100 ? 0 : 1,
   }
 }
 
 const formatColumnValue = (value: number, scale: ColumnScale): string =>
   new Intl.NumberFormat('da-DK', {
     maximumFractionDigits: scale.maximumFractionDigits,
-  }).format(value / scale.divisor)
+  }).format(value)
 
 type FieldYearStripProps = {
   field: FieldRecord

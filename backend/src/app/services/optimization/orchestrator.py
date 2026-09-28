@@ -134,14 +134,21 @@ def _kvote_by_kystvandopland(fields: list[FieldRecord]) -> dict[int, float]:
     }
 
 
-def _locked_field_contribution(field: FieldRecord) -> FixedFieldContribution:
-    """A locked mark's fixed contribution, straight from its current state.
+def _selected_locked_candidate(
+    field: FieldRecord,
+    candidates: list[RotationCandidateEvaluation],
+) -> RotationCandidateEvaluation | None:
+    allowed = set(field.allowed_rotation_ids)
+    if field.rotation_id in allowed:
+        return next((c for c in candidates if c.ref.to_id() == field.rotation_id), None)
+    return next((c for c in candidates if c.ref.to_id() in allowed), None)
 
-    A locked mark's rotation was already decided - by "Rediger manuelt" or
-    the permanent-afgrøde auto-lock - and its db2/n_load/leaching/fen already
-    reflect that choice, so no candidate lookup or recomputation is needed
-    here at all.
-    """
+
+def _locked_field_contribution(
+    field: FieldRecord,
+    candidate: RotationCandidateEvaluation | None = None,
+) -> FixedFieldContribution:
+    """Use saved metrics, and the selected candidate's crops when needed."""
     return FixedFieldContribution(
         kystvand_id=field.kystvand_id,
         db2=field.db2,
@@ -149,6 +156,11 @@ def _locked_field_contribution(field: FieldRecord) -> FixedFieldContribution:
         leaching=field.leaching,
         fen=field.fen,
         kvotegivende=field.kvotegivende,
+        area_ha=field.area_ha if candidate is not None else 0.0,
+        crop_codes_by_year=(
+            tuple(y.year.afgrode_kode for y in candidate.years[: candidate.active_len])
+            if candidate is not None else ()
+        ),
     )
 
 
@@ -205,7 +217,17 @@ def run_optimization(
     fixed_fields = []
     for field in fields:
         if field.allowed_rotation_ids:
-            fixed_fields.append(_locked_field_contribution(field))
+            candidate = None
+            if simulation.constraints.crop_area_limits:
+                candidate = _selected_locked_candidate(
+                    field, candidates_by_field_id.get(field.id, []),
+                )
+                if candidate is None:
+                    raise OptimizationInfeasibleError(
+                        f"Marken {field.name} er låst til en sædskiftekandidat, der ikke "
+                        "længere findes — lås marken op og lås den igen."
+                    )
+            fixed_fields.append(_locked_field_contribution(field, candidate))
             continue
 
         options = _build_options(
@@ -238,6 +260,7 @@ def run_optimization(
                 ),
                 min_fen=simulation.constraints.min_fen,
                 max_fen=simulation.constraints.max_fen,
+                crop_area_limits=tuple(simulation.constraints.crop_area_limits),
             ),
             time_limit_seconds=time_limit_seconds,
         )
@@ -507,8 +530,7 @@ def _locked_yearly_field_contribution(
     caller can fail with a clear error instead of silently dropping the
     mark's quota use from the model.
     """
-    allowed = set(field.allowed_rotation_ids)
-    candidate = next((c for c in candidates if c.ref.to_id() in allowed), None)
+    candidate = _selected_locked_candidate(field, candidates)
     if candidate is None:
         return None
     retention_factor = 1 - (field.retention or 0) / 100
@@ -520,6 +542,8 @@ def _locked_yearly_field_contribution(
         leaching_by_year=leaching_by_year,
         fen=candidate.avg_fen * field.area_ha,
         kvotegivende=field.kvotegivende,
+        area_ha=field.area_ha,
+        crop_codes_by_year=tuple(y.year.afgrode_kode for y in candidate.years),
     )
 
 
@@ -621,6 +645,7 @@ def run_yearly_optimization(
                 db2_swing_pct=db2_swing_pct,
                 min_fen=simulation.constraints.min_fen,
                 max_fen=simulation.constraints.max_fen,
+                crop_area_limits=tuple(simulation.constraints.crop_area_limits),
             ),
             time_limit_seconds=time_limit_seconds,
         )

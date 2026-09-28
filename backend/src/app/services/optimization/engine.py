@@ -3,6 +3,7 @@ from collections import defaultdict
 from ortools.sat.python import cp_model
 
 from app.services.optimization.models import (
+    NUM_YEARS,
     AssignedRotation,
     OptimizationInput,
     OptimizationOutput,
@@ -62,6 +63,28 @@ def solve(input: OptimizationInput) -> OptimizationOutput:
     }
     total_fen = sum(fen_terms) + fixed_fen_total
     constraints = input.constraints
+
+    for limit in constraints.crop_area_limits:
+        for year in range(NUM_YEARS):
+            chosen_area = sum(
+                _scale(field.area_ha) * choice_vars[(field.id, option.key)]
+                for field in input.fields
+                for option in field.options
+                if option.years
+                and option.years[year % len(option.years)].afgrode_kode == limit.afgrode_kode
+            )
+            fixed_area = sum(
+                _scale(fixed.area_ha)
+                for fixed in input.fixed_fields
+                if fixed.crop_codes_by_year
+                and fixed.crop_codes_by_year[year % len(fixed.crop_codes_by_year)]
+                == limit.afgrode_kode
+            )
+            total_area = chosen_area + fixed_area
+            if limit.min_area_ha is not None:
+                model.Add(total_area >= _scale(limit.min_area_ha))
+            if limit.max_area_ha is not None:
+                model.Add(total_area <= _scale(limit.max_area_ha))
 
     for kystvand_id, cap in constraints.max_n_load_by_kystvandopland.items():
         n_load_for_kystvand = kvotegivende_n_load_by_kystvand.get(kystvand_id)

@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.domain.rotation_candidate import RotationCandidateEvaluation, RotationYear
+from app.domain.simulation import CropAreaLimit
 
 OptimizationStatus = Literal["OPTIMAL", "FEASIBLE", "INFEASIBLE", "UNKNOWN"]
+NUM_YEARS = 8
 
 
 @dataclass(frozen=True)
@@ -42,6 +44,8 @@ class FixedFieldContribution:
     leaching: float
     fen: float
     kvotegivende: bool = True
+    area_ha: float = 0.0
+    crop_codes_by_year: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -54,6 +58,7 @@ class ConstraintsInput:
     max_n_load_by_kystvandopland: dict[int | None, float]
     min_fen: float | None
     max_fen: float | None
+    crop_area_limits: tuple[CropAreaLimit, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -126,6 +131,8 @@ class FixedYearlyFieldContribution:
     leaching_by_year: tuple[float, ...]
     fen: float
     kvotegivende: bool = True
+    area_ha: float = 0.0
+    crop_codes_by_year: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -136,6 +143,7 @@ class YearlyConstraintsInput:
     db2_swing_pct: float | None
     min_fen: float | None
     max_fen: float | None
+    crop_area_limits: tuple[CropAreaLimit, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -117,6 +117,7 @@ const CODE_RANGES: readonly CodeRange[] = [
 type KeywordRule = [keywords: readonly string[], group: CropGroup]
 
 const KEYWORD_RULES: readonly KeywordRule[] = [
+  [['frugt', 'bær', 'blomme', 'skov', 'græskar'], 'other'],
   [['kartof'], 'potato'],
   [['roe', 'cikorie'], 'beet'],
   [['majs', 'sorghum'], 'maize'],
@@ -126,6 +127,7 @@ const KEYWORD_RULES: readonly KeywordRule[] = [
   [['brak', 'udyrket', 'natur', 'vildt'], 'fallow'],
   [['græs', 'kløver'], 'grass'],
   [['vinter'], 'winterCereal'],
+  [['brug'], 'other'],
   [
     [
       'vår',
@@ -151,10 +153,14 @@ const groupFromCode = (cropCode: number): CropGroup | null => {
   return null
 }
 
+const WORD_SEPARATOR = /[^\p{L}]+/u
+
 const groupFromName = (cropName: string): CropGroup => {
-  const name = cropName.toLocaleLowerCase('da-DK')
+  const words = cropName.toLocaleLowerCase('da-DK').split(WORD_SEPARATOR)
+  const hasKeyword = (keyword: string) =>
+    words.some((word) => word.startsWith(keyword) || word.endsWith(keyword))
   for (const [keywords, group] of KEYWORD_RULES) {
-    if (keywords.some((keyword) => name.includes(keyword))) return group
+    if (keywords.some(hasKeyword)) return group
   }
   return 'other'
 }

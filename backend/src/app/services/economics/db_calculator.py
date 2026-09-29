@@ -118,7 +118,7 @@ def _lookup_udbyttenorm(
 
 @lru_cache(maxsize=1)
 def _load_salgspriser() -> dict[tuple[int, str, str], dict]:
-    rows = _fetch_rows(salgspris_table, "load-salgspriser")
+    rows = _fetch_rows(salgspris_table, "load-oekonomital-afgroedebundet")
     lookup: dict[tuple[int, str, str], dict] = {}
     for row in rows:
         lookup[(row.afgroedekode, row.driftsform, row.kvalitet)] = {
@@ -142,7 +142,7 @@ def _lookup_salgspris(afgrodekode: int, driftsform: str, kvalitet: str = "") -> 
 
 @lru_cache(maxsize=1)
 def _load_halmudbytte() -> dict[tuple[int, str], float]:
-    rows = _fetch_rows(halmudbytte_table, "load-halmudbytte")
+    rows = _fetch_rows(halmudbytte_table, "load-oekonomital-afgroedebundet")
     lookup: dict[tuple[int, str], float] = {}
     for row in rows:
         lookup[(row.afgroedekode, row.jordbonitet)] = row.halm_udbytte_kg_ha
@@ -160,7 +160,7 @@ def _lookup_halm_udbytte(afgrodekode: int, jbnr: int, irrigated: bool) -> float:
 
 @lru_cache(maxsize=1)
 def _load_arbejdssatser() -> dict[tuple[str, str], list[dict]]:
-    rows = _fetch_rows(arbejdssats_table, "load-arbejdssatser")
+    rows = _fetch_rows(arbejdssats_table, "load-oekonomital-generelle-satser")
     lookup: dict[tuple[str, str], list[dict]] = {}
     for row in rows:
         key = (row.behandling, row.jordbonitet)
@@ -193,7 +193,7 @@ def _lookup_arbejdssats(
 
 @lru_cache(maxsize=1)
 def _load_arbejdsmaengder() -> dict[tuple[int, str, str, str], list[dict]]:
-    rows = _fetch_rows(arbejdsmaengde_table, "load-arbejdsmaengder")
+    rows = _fetch_rows(arbejdsmaengde_table, "load-oekonomital-afgroedebundet")
     lookup: dict[tuple[int, str, str, str], list[dict]] = {}
     for row in rows:
         key = (row.afgroedekode, row.driftsform, row.jordbonitet, row.kvalitet)
@@ -213,7 +213,7 @@ def _migrerede_afgrodekoder() -> frozenset[int]:
 @lru_cache(maxsize=1)
 def _load_dyrkningsomkostninger() -> dict[tuple[int, str], list[dict]]:
     """Map (afgrodekode, driftsform) to rows excluding dynamically recalculated Gødning."""
-    rows = _fetch_rows(dyrkningsomkostning_table, "load-dyrkningsomkostninger")
+    rows = _fetch_rows(dyrkningsomkostning_table, "load-oekonomital-afgroedebundet")
     lookup: dict[tuple[int, str], list[dict]] = {}
     for row in rows:
         if row.kategori == "Gødning":
@@ -258,7 +258,7 @@ def _lookup_omkostningslinjer(
 @lru_cache(maxsize=1)
 def _load_prisliste() -> dict[str, dict]:
     """Map post to price-list data for both Omkostning and Tilskud."""
-    rows = _fetch_rows(prisliste_table, "load-prisliste")
+    rows = _fetch_rows(prisliste_table, "load-oekonomital-generelle-satser")
     lookup: dict[str, dict] = {}
     for row in rows:
         lookup[row.post] = {

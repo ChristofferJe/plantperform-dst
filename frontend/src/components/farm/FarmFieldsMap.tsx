@@ -1873,7 +1873,7 @@ export const FarmFieldsMap = ({
         ) : null}
 
         {addMode ? (
-          <Card className="absolute left-4 top-4 z-10 max-h-[calc(100%-2rem)] w-[min(18rem,calc(100%-2rem))] overflow-y-auto bg-background/95 shadow-lg">
+          <Card className="absolute left-4 top-14 z-5 max-h-[calc(100%-4.5rem)] w-[min(18rem,calc(100%-2rem))] overflow-y-auto bg-background/95 shadow-lg">
             <CardHeader className="p-4 pb-2">
               <CardTitle>Rediger marker</CardTitle>
             </CardHeader>

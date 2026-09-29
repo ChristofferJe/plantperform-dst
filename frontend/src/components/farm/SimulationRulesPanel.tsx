@@ -298,6 +298,9 @@ export const SimulationRulesPanel = ({
               <p className="text-xs text-muted-foreground">FE</p>
             </div>
           </div>
+        </div>
+
+        <div className="border-t border-rules/20 pt-4">
           <CropAreaLimitsEditor
             drafts={cropAreaLimitDrafts}
             cropCodes={cropCodes}
@@ -305,39 +308,40 @@ export const SimulationRulesPanel = ({
             violations={cropAreaViolations}
             onChange={editCropAreaLimits}
           />
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              size="sm"
-              onClick={() => void saveConstraints()}
-              disabled={!isDirty || hasCropAreaLimitErrors}
-              loading={isSaving}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            size="sm"
+            onClick={() => void saveConstraints()}
+            disabled={!isDirty || hasCropAreaLimitErrors}
+            loading={isSaving}
+          >
+            {isSaving ? 'Gemmer...' : 'Gem grænser'}
+          </Button>
+          {isDirty ? (
+            <span className="text-xs font-medium text-amber-700">
+              Ikke gemt
+            </span>
+          ) : null}
+          {isSaved && !saveError ? (
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-xs text-muted-foreground"
             >
-              {isSaving ? 'Gemmer...' : 'Gem grænser'}
-            </Button>
-            {isDirty ? (
-              <span className="text-xs font-medium text-amber-700">
-                Ikke gemt
-              </span>
-            ) : null}
-            {isSaved && !saveError ? (
-              <span
-                role="status"
-                aria-live="polite"
-                className="text-xs text-muted-foreground"
-              >
-                Gemt.
-              </span>
-            ) : null}
-            {saveError ? (
-              <span
-                role="status"
-                aria-live="polite"
-                className="text-xs text-red-700"
-              >
-                {saveError}
-              </span>
-            ) : null}
-          </div>
+              Gemt.
+            </span>
+          ) : null}
+          {saveError ? (
+            <span
+              role="status"
+              aria-live="polite"
+              className="text-xs text-red-700"
+            >
+              {saveError}
+            </span>
+          ) : null}
         </div>
 
         <div className="space-y-3 border-t border-rules/20 pt-4">

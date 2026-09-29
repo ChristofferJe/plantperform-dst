@@ -1,88 +1,90 @@
 import { Plus, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 
 import type { CropCodeOption } from '@/api/types'
+import { CropGroupIcon, CropGroupTile } from '@/components/farm/CropGroupTile'
 import { SearchableCropPickerList } from '@/components/farm/SearchableCropPickerList'
+import { AppTooltip } from '@/components/ui/app-tooltip'
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import {
   cropAreaLimitError,
   cropAreaViolationMessage,
   emptyCropAreaLimitDraft,
+  percentRangeLabel,
   withHectares,
-  withPercent,
   type AreaBound,
   type CropAreaLimitDraft,
   type CropAreaViolation,
 } from '@/lib/crop-area-limits'
-import { cropGroupColor } from '@/lib/crop-groups'
+import {
+  cropGroupColor,
+  cropGroupFor,
+  readableTextColor,
+} from '@/lib/crop-groups'
+import { cn } from '@/lib/utils'
 
-const BOUND_LABELS: Record<AreaBound, string> = {
+const BOUND_NAMES: Record<AreaBound, string> = {
   min: 'Minimum',
   max: 'Maksimum',
 }
 
-type BoundInputsProps = {
+type AreaRangeInputProps = {
   idPrefix: string
-  bound: AreaBound
-  hectares: string
-  percent: string
-  percentDisabled: boolean
+  cropName: string
+  minHa: string
+  maxHa: string
+  percentLabel: string | null
   describedBy?: string
-  onHectaresChange: (value: string) => void
-  onPercentChange: (value: string) => void
+  onChange: (bound: AreaBound, value: string) => void
 }
 
-const BoundInputs = ({
+const AreaRangeInput = ({
   idPrefix,
-  bound,
-  hectares,
-  percent,
-  percentDisabled,
+  cropName,
+  minHa,
+  maxHa,
+  percentLabel,
   describedBy,
-  onHectaresChange,
-  onPercentChange,
-}: BoundInputsProps) => (
-  <div className="space-y-1">
-    <Label
-      htmlFor={`${idPrefix}-${bound}-ha`}
-      className="text-xs font-normal text-muted-foreground"
+  onChange,
+}: AreaRangeInputProps) => (
+  <div>
+    <div
+      role="group"
+      aria-label={`Areal for ${cropName} i hektar`}
+      className="flex h-8 items-center rounded-md border bg-background pr-2 focus-within:ring-2 focus-within:ring-ring"
     >
-      {BOUND_LABELS[bound]}
-    </Label>
-    <div className="grid grid-cols-2 gap-2">
-      <div className="flex items-center gap-1.5">
-        <Input
-          id={`${idPrefix}-${bound}-ha`}
-          type="number"
-          min="0"
-          step="any"
-          value={hectares}
-          placeholder="Ingen"
-          aria-describedby={describedBy}
-          onChange={(event) => onHectaresChange(event.target.value)}
-        />
-        <span className="text-xs text-muted-foreground">ha</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <Input
-          id={`${idPrefix}-${bound}-pct`}
-          type="number"
-          min="0"
-          max="100"
-          step="any"
-          value={percent}
-          placeholder="Ingen"
-          disabled={percentDisabled}
-          aria-label={`${BOUND_LABELS[bound]} i procent`}
-          aria-describedby={describedBy}
-          onChange={(event) => onPercentChange(event.target.value)}
-        />
-        <span className="text-xs text-muted-foreground">%</span>
-      </div>
+      {(['min', 'max'] as const).map((bound) => (
+        <Fragment key={bound}>
+          {bound === 'max' ? (
+            <span className="px-1 text-muted-foreground" aria-hidden="true">
+              –
+            </span>
+          ) : null}
+          <input
+            id={`${idPrefix}-${bound}`}
+            type="number"
+            min="0"
+            step="any"
+            value={bound === 'min' ? minHa : maxHa}
+            placeholder={bound === 'min' ? 'min' : 'maks'}
+            aria-label={`${BOUND_NAMES[bound]} i hektar`}
+            aria-describedby={describedBy}
+            className="h-full w-16 bg-transparent px-2 text-center text-sm tabular-nums placeholder:text-muted-foreground focus-visible:outline-none"
+            onChange={(event) => onChange(bound, event.target.value)}
+          />
+        </Fragment>
+      ))}
+      <span className="text-xs text-muted-foreground">ha</span>
     </div>
+    <p className="h-4 text-center text-[11px] leading-4 tabular-nums text-muted-foreground">
+      {percentLabel}
+    </p>
   </div>
 )
 
@@ -120,6 +122,7 @@ export const CropAreaLimitsEditor = ({
         label: crop.name,
         title: `${crop.name} (${crop.code})`,
         colors: [cropGroupColor(crop.code, crop.name)],
+        icon: <CropGroupTile group={cropGroupFor(crop.code, crop.name)} />,
         meta: String(crop.code),
       }))
   }, [cropCodes, drafts])
@@ -129,17 +132,44 @@ export const CropAreaLimitsEditor = ({
     setIsPicking(false)
   }
 
-  const replaceDraft = (index: number, draft: CropAreaLimitDraft) =>
-    onChange(drafts.map((current, i) => (i === index ? draft : current)))
+  const replaceDraft = (index: number, next: CropAreaLimitDraft) =>
+    onChange(drafts.map((current, i) => (i === index ? next : current)))
 
   const removeDraft = (index: number) =>
     onChange(drafts.filter((_, i) => i !== index))
 
   return (
-    <fieldset className="min-w-0 space-y-3">
-      <legend className="text-sm font-medium leading-none text-foreground">
-        Areal af afgrøder
-      </legend>
+    <section className="space-y-3" aria-labelledby="rules-crop-area-heading">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3
+          id="rules-crop-area-heading"
+          className="mr-auto text-sm font-semibold"
+        >
+          Afgrøder
+        </h3>
+        <Popover open={isPicking} onOpenChange={setIsPicking}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="outline" size="xs">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Tilføj afgrøde
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 max-w-[calc(100vw-2rem)]">
+            <SearchableCropPickerList
+              items={pickerItems}
+              selectedKey={null}
+              onSelect={addCrop}
+              searchLabel="Søg i simuleringens afgrøder"
+              searchPlaceholder="Søg i afgrøder..."
+              emptyMessage={
+                cropCodes.length === 0
+                  ? 'Simuleringen har ingen afgrøder'
+                  : 'Ingen afgrøder matcher søgningen'
+              }
+            />
+          </PopoverContent>
+        </Popover>
+      </div>
       <p className="text-xs text-muted-foreground">
         Hvor meget der mindst og højst skal dyrkes af en afgrøde. Procent er af
         simuleringens samlede areal
@@ -149,13 +179,18 @@ export const CropAreaLimitsEditor = ({
         .
       </p>
 
-      {drafts.length > 0 ? (
-        <ul className="space-y-3">
+      {drafts.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          Ingen afgrøder har et krav endnu.
+        </p>
+      ) : (
+        <ul className="divide-y overflow-hidden rounded-lg border bg-background">
           {drafts.map((draft, index) => {
             const idPrefix = `rules-crop-area-${draft.cropCode}`
             const name =
               nameByCode.get(draft.cropCode) ?? `Afgrødekode ${draft.cropCode}`
             const error = cropAreaLimitError(draft)
+            const group = cropGroupFor(draft.cropCode, name)
             const violation = violationByCode.get(draft.cropCode)
             const errorId = `${idPrefix}-error`
             const violationId = `${idPrefix}-violation`
@@ -166,107 +201,79 @@ export const CropAreaLimitsEditor = ({
             return (
               <li
                 key={draft.cropCode}
-                className={`space-y-2 rounded-lg border bg-background p-3 ${
-                  violation ? 'border-destructive/60' : ''
-                }`}
+                className={cn('flex', violation && 'bg-destructive/5')}
               >
-                <div className="flex items-center gap-2">
+                <AppTooltip content={group.label}>
                   <span
-                    className="h-[14px] w-[10px] shrink-0 rounded-[3px]"
+                    role="img"
+                    aria-label={group.label}
+                    className="flex w-11 shrink-0 items-center justify-center"
                     style={{
-                      backgroundColor: cropGroupColor(draft.cropCode, name),
+                      backgroundColor: group.color,
+                      color: readableTextColor(group.color),
                     }}
-                    aria-hidden="true"
-                  />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {name}
-                    <span className="font-normal text-muted-foreground">
-                      {' '}
-                      · {draft.cropCode}
-                    </span>
+                  >
+                    <CropGroupIcon group={group} className="size-6" />
                   </span>
+                </AppTooltip>
+                <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-4 gap-y-1 px-3 py-2">
+                  <div className="min-w-0 flex-1 basis-40">
+                    <div className="flex h-8 min-w-0 items-center gap-2">
+                      <span className="truncate text-sm font-medium">
+                        {name}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        · {draft.cropCode}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <AreaRangeInput
+                      idPrefix={idPrefix}
+                      cropName={name}
+                      minHa={draft.minHa}
+                      maxHa={draft.maxHa}
+                      percentLabel={
+                        totalAreaHa > 0 ? percentRangeLabel(draft) : null
+                      }
+                      describedBy={describedBy}
+                      onChange={(bound, value) =>
+                        replaceDraft(
+                          index,
+                          withHectares(draft, bound, value, totalAreaHa),
+                        )
+                      }
+                    />
+                  </div>
+                  {error || violation ? (
+                    <div className="basis-full space-y-0.5">
+                      <FieldError id={errorId} message={error} />
+                      <FieldError
+                        id={violationId}
+                        message={
+                          violation ? cropAreaViolationMessage(violation) : null
+                        }
+                      />
+                    </div>
+                  ) : null}
+                </div>
+                <div className="flex items-center pr-2">
                   <Button
                     type="button"
                     variant="ghost"
                     size="xs"
+                    className="w-8 px-0"
                     aria-label={`Fjern kravet til ${name}`}
                     onClick={() => removeDraft(index)}
                   >
                     <X className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(['min', 'max'] as const).map((bound) => (
-                    <BoundInputs
-                      key={bound}
-                      idPrefix={idPrefix}
-                      bound={bound}
-                      hectares={bound === 'min' ? draft.minHa : draft.maxHa}
-                      percent={bound === 'min' ? draft.minPct : draft.maxPct}
-                      percentDisabled={totalAreaHa <= 0}
-                      describedBy={describedBy}
-                      onHectaresChange={(value) =>
-                        replaceDraft(
-                          index,
-                          withHectares(draft, bound, value, totalAreaHa),
-                        )
-                      }
-                      onPercentChange={(value) =>
-                        replaceDraft(
-                          index,
-                          withPercent(draft, bound, value, totalAreaHa),
-                        )
-                      }
-                    />
-                  ))}
-                </div>
-                <FieldError id={errorId} message={error} />
-                <FieldError
-                  id={violationId}
-                  message={
-                    violation ? cropAreaViolationMessage(violation) : null
-                  }
-                />
               </li>
             )
           })}
         </ul>
-      ) : null}
-
-      {isPicking ? (
-        <div className="space-y-2 rounded-lg border bg-background p-3">
-          <SearchableCropPickerList
-            items={pickerItems}
-            selectedKey={null}
-            onSelect={addCrop}
-            searchLabel="Søg i simuleringens afgrøder"
-            searchPlaceholder="Søg i afgrøder..."
-            emptyMessage={
-              cropCodes.length === 0
-                ? 'Simuleringen har ingen afgrøder'
-                : 'Ingen afgrøder matcher søgningen'
-            }
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            onClick={() => setIsPicking(false)}
-          >
-            Annuller
-          </Button>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setIsPicking(true)}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Tilføj afgrøde
-        </Button>
       )}
-    </fieldset>
+    </section>
   )
 }

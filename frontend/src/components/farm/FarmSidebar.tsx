@@ -740,10 +740,16 @@ const SimulationRunFailure = ({ run, fields }: SimulationRunFailureProps) => {
       role="alert"
       className="flex items-center gap-1 pr-1 pl-9 text-[11px] text-destructive group-data-[collapsible=icon]:hidden"
     >
-      <AppTooltip content={run.status === 'failed' ? run.error : undefined}>
-        <span className="min-w-0 flex-1 truncate">
-          {optimizationRunName(run.kind)} fejlede
-        </span>
+      {/* The type is left to the tooltip; with it the line is too long to fit
+          next to "Prøv igen". */}
+      <AppTooltip
+        content={
+          run.status === 'failed'
+            ? `${optimizationRunName(run.kind)} fejlede: ${run.error}`
+            : undefined
+        }
+      >
+        <span className="min-w-0 flex-1 truncate">Optimering fejlede</span>
       </AppTooltip>
       <button
         type="button"

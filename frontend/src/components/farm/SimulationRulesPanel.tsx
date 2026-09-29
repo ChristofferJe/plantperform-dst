@@ -2,7 +2,8 @@ import { Info, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { mutate } from 'swr'
 
-import { simulationsKey } from '@/api/hooks'
+import { ApiError } from '@/api/client'
+import { simulationsKey, useScenarioCropCodes } from '@/api/hooks'
 import { updateSimulationConstraints } from '@/api/mutations'
 import { useOptimizationRunActions } from '@/api/optimization-runs'
 import type { FieldRecord, CatchmentNLoadCap, Simulation } from '@/api/types'
@@ -13,6 +14,7 @@ import {
   numberToInput,
   useCatchmentOptions,
 } from '@/components/farm/catchment-options'
+import { CropAreaLimitsEditor } from '@/components/farm/CropAreaLimitsEditor'
 import { GlossaryInfo, type GlossaryTerm } from '@/components/GlossaryInfo'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,6 +26,14 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  cropAreaLimitError,
+  cropAreaLimitFromDraft,
+  draftFromCropAreaLimit,
+  sameCropAreaLimits,
+  totalFieldAreaHa,
+  type CropAreaLimitDraft,
+} from '@/lib/crop-area-limits'
 
 type ReadOnlyRuleProps = {
   label: string
@@ -84,6 +94,15 @@ export const SimulationRulesPanel = ({
         ),
       ),
   )
+  const totalAreaHa = totalFieldAreaHa(fields)
+  const { data: cropCodes = [] } = useScenarioCropCodes(farmId, simulation.id)
+  const [cropAreaLimitDrafts, setCropAreaLimitDrafts] = useState<
+    CropAreaLimitDraft[]
+  >(() =>
+    simulation.constraints.cropAreaLimits.map((limit) =>
+      draftFromCropAreaLimit(limit, totalAreaHa),
+    ),
+  )
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isSaved, setIsSaved] = useState(false)
@@ -96,6 +115,11 @@ export const SimulationRulesPanel = ({
         maxNLoadInputs[catchmentKey(catchment.catchmentId)] ?? '',
       ),
     }),
+  )
+
+  const cropAreaLimits = cropAreaLimitDrafts.map(cropAreaLimitFromDraft)
+  const hasCropAreaLimitErrors = cropAreaLimitDrafts.some(
+    (draft) => cropAreaLimitError(draft) !== null,
   )
 
   const savedMaxNLoadByKey = new Map(
@@ -111,7 +135,8 @@ export const SimulationRulesPanel = ({
       (cap) =>
         cap.maxNLoadKg !==
         (savedMaxNLoadByKey.get(catchmentKey(cap.catchmentId)) ?? null),
-    )
+    ) ||
+    !sameCropAreaLimits(cropAreaLimits, simulation.constraints.cropAreaLimits)
 
   const editMinFeedUnits = (value: string) => {
     setIsSaved(false)
@@ -128,6 +153,11 @@ export const SimulationRulesPanel = ({
     setMaxNLoadInputs((current) => ({ ...current, [key]: value }))
   }
 
+  const editCropAreaLimits = (drafts: CropAreaLimitDraft[]) => {
+    setIsSaved(false)
+    setCropAreaLimitDrafts(drafts)
+  }
+
   const saveConstraints = async () => {
     setIsSaving(true)
     try {
@@ -136,6 +166,7 @@ export const SimulationRulesPanel = ({
         minFeedUnits,
         maxFeedUnits,
         maxNLoadByCatchment,
+        cropAreaLimits,
       })
       await mutate(
         simulationsKey(farmId),
@@ -154,11 +185,20 @@ export const SimulationRulesPanel = ({
           ),
         ),
       )
+      setCropAreaLimitDrafts(
+        updated.constraints.cropAreaLimits.map((limit) =>
+          draftFromCropAreaLimit(limit, totalAreaHa),
+        ),
+      )
       setSaveError(null)
       setIsSaved(true)
       markStale(simulation.id)
-    } catch {
-      setSaveError('Kunne ikke gemme grænserne.')
+    } catch (error) {
+      setSaveError(
+        error instanceof ApiError && error.status === 422
+          ? `Kunne ikke gemme grænserne: ${error.message}`
+          : 'Kunne ikke gemme grænserne.',
+      )
     } finally {
       setIsSaving(false)
     }
@@ -252,11 +292,17 @@ export const SimulationRulesPanel = ({
               <p className="text-xs text-muted-foreground">FE</p>
             </div>
           </div>
+          <CropAreaLimitsEditor
+            drafts={cropAreaLimitDrafts}
+            cropCodes={cropCodes}
+            totalAreaHa={totalAreaHa}
+            onChange={editCropAreaLimits}
+          />
           <div className="flex flex-wrap items-center gap-3">
             <Button
               size="sm"
               onClick={() => void saveConstraints()}
-              disabled={!isDirty}
+              disabled={!isDirty || hasCropAreaLimitErrors}
               loading={isSaving}
             >
               {isSaving ? 'Gemmer...' : 'Gem grænser'}

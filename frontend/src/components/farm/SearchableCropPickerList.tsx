@@ -45,9 +45,10 @@ export const SearchableCropPickerList = ({
   const displayedPlaceholder = query ? searchPlaceholder : (selectedLabel ?? searchPlaceholder)
 
   useEffect(() => {
-    itemRefs.current[initialSelectedIndex]?.scrollIntoView({ block: 'center' })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    if (!query) {
+      itemRefs.current[initialSelectedIndex]?.scrollIntoView({ block: 'center' })
+    }
+  }, [initialSelectedIndex, items, query, selectedKey])
 
   if (query !== queryAtLastHighlightReset) {
     setQueryAtLastHighlightReset(query)

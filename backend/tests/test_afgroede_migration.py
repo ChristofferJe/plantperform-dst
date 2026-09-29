@@ -99,9 +99,10 @@ class AfgroedeMigrationTests(unittest.TestCase):
         previous = load_migration("20260911_0001_runtime_reference_lookups.py")
         permanent = load_migration("20260922_0001_permanent_afgrode.py")
         current = load_migration("20260925_0001_consolidate_afgroede.py")
+        flags = load_migration("20260928_0001_afgroede_crop_flags.py")
         with self.engine.begin() as connection:
             op = Operations(MigrationContext.configure(connection))
-            previous.op = permanent.op = current.op = op
+            previous.op = permanent.op = current.op = flags.op = op
             connection.execute(sa.text("CREATE TABLE registry_field (crop_history json NOT NULL)"))
             previous.upgrade()
             permanent.upgrade()
@@ -155,6 +156,7 @@ class AfgroedeMigrationTests(unittest.TestCase):
                 )
             )
             current.upgrade()
+            flags.upgrade()
 
             crops = {
                 row.afgroedekode: row
@@ -163,6 +165,18 @@ class AfgroedeMigrationTests(unittest.TestCase):
                 ).mappings()
             }
             self.assertEqual(set(crops), {1, 2, 3, 905})
+            self.assertTrue(
+                all(
+                    not crop["er_hovedafgrode"] and not crop["grund6procent"]
+                    for crop in crops.values()
+                )
+            )
+            connection.execute(
+                sa.text(
+                    "UPDATE afgroede SET er_hovedafgrode = true, grund6procent = true "
+                    "WHERE afgroedekode = 1"
+                )
+            )
             with self.assertRaises(sa.exc.IntegrityError), connection.begin_nested():
                 connection.execute(sa.text("INSERT INTO afgroede (afgroedekode) VALUES (0)"))
             self.assertEqual(crops[1]["navn"], "NUAR name")
@@ -213,6 +227,8 @@ class AfgroedeMigrationTests(unittest.TestCase):
                 )
                 self.assertEqual(afgroede_normer.lookup_nfix(1, 1), 7)
                 self.assertEqual(afgroede_normer.lookup_crop_params(1)["M"], 2)
+                self.assertTrue(afgroede_normer.lookup_crop_params(1)["er_hovedafgrode"])
+                self.assertTrue(afgroede_normer.lookup_crop_params(1)["grund6procent"])
                 self.assertEqual(afgroede_normer.lookup_crop_params(905), {})
                 self.assertTrue(afgroede_normer.is_permanent_afgrode(1))
                 self.assertEqual(afstromning.afstromningskategori(1, eea_on=True), 1)
@@ -229,6 +245,10 @@ class AfgroedeMigrationTests(unittest.TestCase):
                 afstromning.clear_lookup_cache()
                 db_calculator._load_udbyttenormer.cache_clear()
 
+            flags.downgrade()
+            columns = {column["name"] for column in sa.inspect(connection).get_columns("afgroede")}
+            self.assertNotIn("er_hovedafgrode", columns)
+            self.assertNotIn("grund6procent", columns)
             current.downgrade()
             self.assertEqual(
                 connection.execute(

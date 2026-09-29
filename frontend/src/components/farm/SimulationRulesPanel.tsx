@@ -304,6 +304,7 @@ export const SimulationRulesPanel = ({
           <CropAreaLimitsEditor
             drafts={cropAreaLimitDrafts}
             cropCodes={cropCodes}
+            fields={fields}
             totalAreaHa={totalAreaHa}
             violations={cropAreaViolations}
             onChange={editCropAreaLimits}

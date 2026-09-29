@@ -6,6 +6,11 @@ import { useAuthFields } from '@/components/onboarding/auth-fields'
 import { AuthFields } from '@/components/onboarding/AuthFields'
 import { AuthNotice } from '@/components/onboarding/AuthNotice'
 import { Button } from '@/components/ui/button'
+import {
+  LOGIN_FAILURE_MESSAGES,
+  loginFailure,
+  type LoginFailure,
+} from '@/lib/auth-form'
 import { clearHomeVisitedThisSession } from '@/lib/onboarding'
 
 type ResendState = 'idle' | 'sending' | 'sent' | 'failed'
@@ -23,8 +28,7 @@ export const LoginForm = ({
 }: LoginFormProps) => {
   const { signIn } = useAuth()
   const fields = useAuthFields('login', initialEmail)
-  const [error, setError] = useState<string | null>(null)
-  const [unverified, setUnverified] = useState(false)
+  const [failure, setFailure] = useState<LoginFailure | null>(null)
   const [resendState, setResendState] = useState<ResendState>('idle')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -43,8 +47,7 @@ export const LoginForm = ({
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
-    setError(null)
-    setUnverified(false)
+    setFailure(null)
     setResendState('idle')
     if (!fields.validate()) return
     const email = fields.normalizedEmail
@@ -54,22 +57,15 @@ export const LoginForm = ({
       clearHomeVisitedThisSession(email)
       onSignedIn(email)
     } catch (requestError) {
-      const status =
-        requestError instanceof ApiError ? requestError.status : null
-      if (status === 403) {
-        setUnverified(true)
-        setError(
-          'Din e-mail er ikke bekræftet endnu. Klik på linket i mailen, eller få den sendt igen.',
-        )
-      } else {
-        setError('E-mail eller adgangskode er forkert.')
-      }
+      setFailure(
+        requestError instanceof ApiError
+          ? loginFailure(requestError.status, requestError.message)
+          : 'unavailable',
+      )
     } finally {
       setIsSubmitting(false)
     }
   }
-
-  const credentialsRejected = error !== null && !unverified
 
   return (
     <form className="space-y-6" noValidate onSubmit={onSubmit}>
@@ -79,11 +75,13 @@ export const LoginForm = ({
         autoFocus={
           autoFocusPassword ? 'password' : initialEmail ? 'none' : 'email'
         }
-        rejected={credentialsRejected}
+        rejected={failure === 'credentials'}
       />
-      {error ? <AuthNotice tone="error">{error}</AuthNotice> : null}
+      {failure ? (
+        <AuthNotice tone="error">{LOGIN_FAILURE_MESSAGES[failure]}</AuthNotice>
+      ) : null}
       <div className="space-y-3">
-        {unverified ? (
+        {failure === 'unverified' ? (
           <Button
             type="button"
             size="lg"

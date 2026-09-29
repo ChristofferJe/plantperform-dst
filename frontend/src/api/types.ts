@@ -165,12 +165,19 @@ export type CatchmentNLoadCap = {
   maxNLoadKg: number | null
 }
 
+export type CropAreaLimit = {
+  cropCode: number
+  minAreaHa: number | null
+  maxAreaHa: number | null
+}
+
 export type OptimizationConstraints = {
   maxNLoadByCatchment: CatchmentNLoadCap[]
   minFeedUnits: number | null
   maxFeedUnits: number | null
   maxFieldsWithNewRotation: number | null
   cropPercentages: CropPercentageConstraint[]
+  cropAreaLimits: CropAreaLimit[]
   globallyAllowedRotationIds: string[] | null
 }
 

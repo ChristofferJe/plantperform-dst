@@ -1,7 +1,7 @@
 import { Plus, X } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 
-import type { CropCodeOption } from '@/api/types'
+import type { CropCodeOption, FieldRecord } from '@/api/types'
 import { CropGroupIcon, CropGroupTile } from '@/components/farm/CropGroupTile'
 import { SearchableCropPickerList } from '@/components/farm/SearchableCropPickerList'
 import { AppTooltip } from '@/components/ui/app-tooltip'
@@ -14,8 +14,12 @@ import {
 } from '@/components/ui/popover'
 import {
   cropAreaLimitError,
+  cropAreaLimitWarning,
   cropAreaViolationMessage,
+  currentCropArea,
+  currentCropAreaLabel,
   emptyCropAreaLimitDraft,
+  fieldAreaSums,
   percentRangeLabel,
   withHectares,
   type AreaBound,
@@ -91,6 +95,7 @@ const AreaRangeInput = ({
 type CropAreaLimitsEditorProps = {
   drafts: CropAreaLimitDraft[]
   cropCodes: CropCodeOption[]
+  fields: FieldRecord[]
   totalAreaHa: number
   violations: CropAreaViolation[]
   onChange: (drafts: CropAreaLimitDraft[]) => void
@@ -99,6 +104,7 @@ type CropAreaLimitsEditorProps = {
 export const CropAreaLimitsEditor = ({
   drafts,
   cropCodes,
+  fields,
   totalAreaHa,
   violations,
   onChange,
@@ -109,6 +115,7 @@ export const CropAreaLimitsEditor = ({
     () => new Map(cropCodes.map((crop) => [crop.code, crop.name])),
     [cropCodes],
   )
+  const sums = useMemo(() => fieldAreaSums(fields), [fields])
   const violationByCode = new Map(
     violations.map((violation) => [violation.cropCode, violation]),
   )
@@ -176,7 +183,7 @@ export const CropAreaLimitsEditor = ({
         {totalAreaHa > 0
           ? ` på ${totalAreaHa.toLocaleString('da-DK', { maximumFractionDigits: 2 })} ha`
           : ''}
-        .
+        . Marker deles ikke, så giv hellere kravet et spænd end et præcist tal.
       </p>
 
       {drafts.length === 0 ? (
@@ -190,12 +197,24 @@ export const CropAreaLimitsEditor = ({
             const name =
               nameByCode.get(draft.cropCode) ?? `Afgrødekode ${draft.cropCode}`
             const error = cropAreaLimitError(draft)
+            const wholeFieldWarning = cropAreaLimitWarning(
+              draft,
+              totalAreaHa,
+              sums,
+            )
+            const warnings = wholeFieldWarning ? [wholeFieldWarning] : []
+            const warning = warnings.length > 0
             const group = cropGroupFor(draft.cropCode, name)
             const violation = violationByCode.get(draft.cropCode)
             const errorId = `${idPrefix}-error`
+            const warningId = `${idPrefix}-warning`
             const violationId = `${idPrefix}-violation`
             const describedBy =
-              [error ? errorId : null, violation ? violationId : null]
+              [
+                error ? errorId : null,
+                warning ? warningId : null,
+                violation ? violationId : null,
+              ]
                 .filter(Boolean)
                 .join(' ') || undefined
             return (
@@ -226,6 +245,11 @@ export const CropAreaLimitsEditor = ({
                         · {draft.cropCode}
                       </span>
                     </div>
+                    <p className="text-[11px] leading-4 text-muted-foreground">
+                      {currentCropAreaLabel(
+                        currentCropArea(fields, draft.cropCode),
+                      )}
+                    </p>
                   </div>
                   <div>
                     <AreaRangeInput
@@ -245,9 +269,19 @@ export const CropAreaLimitsEditor = ({
                       }
                     />
                   </div>
-                  {error || violation ? (
+                  {error || warning || violation ? (
                     <div className="basis-full space-y-0.5">
                       <FieldError id={errorId} message={error} />
+                      {warning ? (
+                        <div
+                          id={warningId}
+                          className="space-y-0.5 text-xs font-medium text-amber-700"
+                        >
+                          {warnings.map((text) => (
+                            <p key={text}>{text}</p>
+                          ))}
+                        </div>
+                      ) : null}
                       <FieldError
                         id={violationId}
                         message={

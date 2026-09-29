@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import { AppTooltip } from '@/components/ui/app-tooltip'
 import { Input } from '@/components/ui/input'
@@ -9,6 +16,7 @@ export type CropPickerItem = {
   label: string
   title: string
   colors: string[]
+  icon?: ReactNode
   meta?: string
 }
 
@@ -130,16 +138,18 @@ export const SearchableCropPickerList = ({
                         : 'border-transparent hover:bg-muted'
                   }`}
                 >
-                  <span className="mt-0.5 flex shrink-0 gap-[2px]">
-                    {item.colors.map((color, colorIndex) => (
-                      <span
-                        key={colorIndex}
-                        className="h-[14px] w-[10px] shrink-0 rounded-[3px]"
-                        style={{ backgroundColor: color }}
-                        aria-hidden="true"
-                      />
-                    ))}
-                  </span>
+                  {item.icon ?? (
+                    <span className="mt-0.5 flex shrink-0 gap-[2px]">
+                      {item.colors.map((color, colorIndex) => (
+                        <span
+                          key={colorIndex}
+                          className="h-[14px] w-[10px] shrink-0 rounded-[3px]"
+                          style={{ backgroundColor: color }}
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </span>
+                  )}
                   <span className="line-clamp-2 min-w-0 flex-1">
                     {item.label}
                   </span>

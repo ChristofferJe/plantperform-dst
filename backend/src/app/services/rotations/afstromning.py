@@ -1,6 +1,6 @@
 """Database-backed P-runoff categories per crop code.
 
-``load_afgroeder.py`` imports Bilag 1's authoritative lookup;
+``load_afgroeder.py`` imports the master CSV's authoritative lookup;
 the NLES5 runtime reads the consolidated crop table.
 """
 from __future__ import annotations

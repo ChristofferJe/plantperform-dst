@@ -8,10 +8,9 @@ from pathlib import Path
 
 import psycopg
 
-from database.scripts.load_afgroede_normer import XLSX_PATH, parse_afgroede_normer
-from database.scripts.load_afstromningskategorier import CSV_PATH as RUNOFF_PATH
+from database.scripts.load_afgroede_normer import CSV_PATH as MASTER_PATH
+from database.scripts.load_afgroede_normer import parse_afgroede_normer
 from database.scripts.load_afstromningskategorier import parse_afstromningskategorier
-from database.scripts.load_permanente_afgrodekoder import CSV_PATH as PERMANENT_PATH
 from database.scripts.load_permanente_afgrodekoder import parse_permanente_afgrodekoder
 from database.scripts.runtime_lookup_loader import database_dsn, replace_tables
 
@@ -25,6 +24,8 @@ AFGROEDE_COLUMNS = (
     "norm_navn",
     "permanent",
     "has_nuar",
+    "er_hovedafgrode",
+    "grund6procent",
     "m",
     "w",
     "wc",
@@ -114,6 +115,8 @@ def build_afgroede_rows(
                 "afgroedekode": code,
                 "permanent": False,
                 "has_nuar": False,
+                "er_hovedafgrode": False,
+                "grund6procent": False,
             },
         )
 
@@ -185,11 +188,13 @@ def build_afgroede_rows(
                         "mp_ambig",
                         "wp_ambig",
                     ),
-                    row[2:],
+                    row[2:12],
                     strict=True,
                 )
             )
         )
+        entry["er_hovedafgrode"] = row[12]
+        entry["grund6procent"] = row[13]
         name_for(code, row[1], 4)
 
     afgroede_rows = [
@@ -199,15 +204,13 @@ def build_afgroede_rows(
 
 
 def load_afgroeder(
-    workbook_path: Path = XLSX_PATH,
-    runoff_path: Path = RUNOFF_PATH,
-    permanent_path: Path = PERMANENT_PATH,
+    master_path: Path = MASTER_PATH,
     gpkg_path: Path = GPKG_PATH,
     database_url: str | None = None,
 ) -> None:
-    norm_rows, nfix_rows, nuar_rows = parse_afgroede_normer(workbook_path)
-    runoff_rows = parse_afstromningskategorier(runoff_path)
-    permanent_rows = parse_permanente_afgrodekoder(permanent_path)
+    norm_rows, nfix_rows, nuar_rows = parse_afgroede_normer(master_path)
+    runoff_rows = parse_afstromningskategorier(master_path)
+    permanent_rows = parse_permanente_afgrodekoder(master_path)
     history_names = registry_names(gpkg_path)
     history_codes = registry_codes(database_url)
     afgroede_rows, conditional_norm_rows = build_afgroede_rows(

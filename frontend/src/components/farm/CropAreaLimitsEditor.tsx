@@ -1,7 +1,7 @@
 import { Plus, X } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 
-import type { CropCodeOption, FieldRecord } from '@/api/types'
+import type { CropAreaRange, CropCodeOption, FieldRecord } from '@/api/types'
 import { CropGroupIcon, CropGroupTile } from '@/components/farm/CropGroupTile'
 import { SearchableCropPickerList } from '@/components/farm/SearchableCropPickerList'
 import { AppTooltip } from '@/components/ui/app-tooltip'
@@ -15,12 +15,17 @@ import {
 import {
   cropAreaLimitError,
   cropAreaLimitWarning,
+  cropAreaRangeError,
+  cropAreaRangeWarnings,
   cropAreaViolationMessage,
   currentCropArea,
   currentCropAreaLabel,
   emptyCropAreaLimitDraft,
   fieldAreaSums,
+  formatAreaHa,
+  possibleCropArea,
   percentRangeLabel,
+  possibleCropAreaLabel,
   withHectares,
   type AreaBound,
   type CropAreaLimitDraft,
@@ -96,6 +101,7 @@ type CropAreaLimitsEditorProps = {
   drafts: CropAreaLimitDraft[]
   cropCodes: CropCodeOption[]
   fields: FieldRecord[]
+  ranges: CropAreaRange[]
   totalAreaHa: number
   violations: CropAreaViolation[]
   onChange: (drafts: CropAreaLimitDraft[]) => void
@@ -105,6 +111,7 @@ export const CropAreaLimitsEditor = ({
   drafts,
   cropCodes,
   fields,
+  ranges,
   totalAreaHa,
   violations,
   onChange,
@@ -116,6 +123,10 @@ export const CropAreaLimitsEditor = ({
     [cropCodes],
   )
   const sums = useMemo(() => fieldAreaSums(fields), [fields])
+  const rangeByCode = useMemo(
+    () => new Map(ranges.map((range) => [range.cropCode, range])),
+    [ranges],
+  )
   const violationByCode = new Map(
     violations.map((violation) => [violation.cropCode, violation]),
   )
@@ -124,15 +135,20 @@ export const CropAreaLimitsEditor = ({
     const limitedCodes = new Set(drafts.map((draft) => draft.cropCode))
     return cropCodes
       .filter((crop) => !limitedCodes.has(crop.code))
-      .map((crop) => ({
-        key: String(crop.code),
-        label: crop.name,
-        title: `${crop.name} (${crop.code})`,
-        colors: [cropGroupColor(crop.code, crop.name)],
-        icon: <CropGroupTile group={cropGroupFor(crop.code, crop.name)} />,
-        meta: String(crop.code),
-      }))
-  }, [cropCodes, drafts])
+      .map((crop) => {
+        const range = rangeByCode.get(crop.code)
+        return {
+          key: String(crop.code),
+          label: crop.name,
+          title: `${crop.name} (${crop.code})`,
+          colors: [cropGroupColor(crop.code, crop.name)],
+          icon: <CropGroupTile group={cropGroupFor(crop.code, crop.name)} />,
+          meta: range
+            ? `${crop.code} · højst ${formatAreaHa(possibleCropArea(range).highestMinHa)} ha`
+            : String(crop.code),
+        }
+      })
+  }, [cropCodes, drafts, rangeByCode])
 
   const addCrop = (key: string) => {
     onChange([...drafts, emptyCropAreaLimitDraft(Number(key))])
@@ -197,13 +213,19 @@ export const CropAreaLimitsEditor = ({
             const name =
               nameByCode.get(draft.cropCode) ?? `Afgrødekode ${draft.cropCode}`
             const error = cropAreaLimitError(draft)
+            const range = rangeByCode.get(draft.cropCode)
             const wholeFieldWarning = cropAreaLimitWarning(
               draft,
               totalAreaHa,
               sums,
             )
-            const warnings = wholeFieldWarning ? [wholeFieldWarning] : []
+            const warnings = [
+              ...cropAreaRangeWarnings(draft, range),
+              ...(wholeFieldWarning ? [wholeFieldWarning] : []),
+            ]
             const warning = warnings.length > 0
+            const rangeError = cropAreaRangeError(draft, range)
+            const possible = range ? possibleCropArea(range) : null
             const group = cropGroupFor(draft.cropCode, name)
             const violation = violationByCode.get(draft.cropCode)
             const errorId = `${idPrefix}-error`
@@ -211,7 +233,7 @@ export const CropAreaLimitsEditor = ({
             const violationId = `${idPrefix}-violation`
             const describedBy =
               [
-                error ? errorId : null,
+                error || rangeError ? errorId : null,
                 warning ? warningId : null,
                 violation ? violationId : null,
               ]
@@ -249,6 +271,9 @@ export const CropAreaLimitsEditor = ({
                       {currentCropAreaLabel(
                         currentCropArea(fields, draft.cropCode),
                       )}
+                      {possible
+                        ? ` · ${possibleCropAreaLabel(possible)}`
+                        : null}
                     </p>
                   </div>
                   <div>
@@ -269,9 +294,39 @@ export const CropAreaLimitsEditor = ({
                       }
                     />
                   </div>
-                  {error || warning || violation ? (
+                  {error || rangeError || warning || violation ? (
                     <div className="basis-full space-y-0.5">
-                      <FieldError id={errorId} message={error} />
+                      {rangeError && !error ? (
+                        <div
+                          id={errorId}
+                          className="flex flex-wrap items-center gap-x-2 gap-y-1"
+                        >
+                          <p className="text-xs font-medium text-destructive">
+                            {rangeError.message}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            className="h-6 px-2 text-xs"
+                            onClick={() =>
+                              replaceDraft(
+                                index,
+                                withHectares(
+                                  draft,
+                                  rangeError.fix.bound,
+                                  String(rangeError.fix.areaHa),
+                                  totalAreaHa,
+                                ),
+                              )
+                            }
+                          >
+                            {rangeError.fix.label}
+                          </Button>
+                        </div>
+                      ) : (
+                        <FieldError id={errorId} message={error} />
+                      )}
                       {warning ? (
                         <div
                           id={warningId}

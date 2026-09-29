@@ -1,5 +1,5 @@
-import type { CropAreaLimit, FieldRecord } from '@/api/types'
-import { NUM_ROTATION_YEARS } from '@/lib/field-domain'
+import type { CropAreaLimit, CropAreaRange, FieldRecord } from '@/api/types'
+import { NUM_ROTATION_YEARS, ROTATION_CALENDAR_YEARS } from '@/lib/field-domain'
 
 export type AreaBound = 'min' | 'max'
 
@@ -232,6 +232,153 @@ export const cropAreaLimitWarning = (
     `og ${areaFormat.format(max)} ha, så års-optimeringen kan ikke opfylde ` +
     'kravet. Gør spændet større.'
   )
+}
+
+export const formatAreaHa = (areaHa: number) => areaFormat.format(areaHa)
+
+const RANGE_TOLERANCE_HA = 0.005
+
+type RunBounds = {
+  highestMinHa: number
+  lowestMaxHa: number
+  highestMinYears: number[]
+  lowestMaxYears: number[]
+}
+
+const optimizeBounds = (range: CropAreaRange): RunBounds => ({
+  highestMinHa: range.maxAverageHa,
+  lowestMaxHa: range.minAverageHa,
+  highestMinYears: [],
+  lowestMaxYears: [],
+})
+
+const yearlyBounds = (range: CropAreaRange): RunBounds => {
+  const weakestYearHa = Math.min(...range.maxHaByYear)
+  const strongestFloorHa = Math.max(...range.minHaByYear)
+  const yearsAt = (areaByYear: number[], area: number) =>
+    ROTATION_CALENDAR_YEARS.filter(
+      (_, year) =>
+        Math.abs((areaByYear[year] ?? 0) - area) <= RANGE_TOLERANCE_HA,
+    )
+  return {
+    highestMinHa: Math.min(weakestYearHa, range.yearlyMaxAverageHa),
+    lowestMaxHa: strongestFloorHa,
+    highestMinYears:
+      weakestYearHa < range.yearlyMaxAverageHa
+        ? yearsAt(range.maxHaByYear, weakestYearHa)
+        : [],
+    lowestMaxYears:
+      strongestFloorHa > 0 ? yearsAt(range.minHaByYear, strongestFloorHa) : [],
+  }
+}
+
+export type PossibleCropArea = {
+  lowestMaxHa: number
+  highestMinHa: number
+}
+
+export const possibleCropArea = (range: CropAreaRange): PossibleCropArea => {
+  const optimize = optimizeBounds(range)
+  const yearly = yearlyBounds(range)
+  return {
+    lowestMaxHa: Math.min(optimize.lowestMaxHa, yearly.lowestMaxHa),
+    highestMinHa: Math.max(optimize.highestMinHa, yearly.highestMinHa),
+  }
+}
+
+export const possibleCropAreaLabel = (possible: PossibleCropArea) =>
+  `Muligt: ${areaFormat.format(possible.lowestMaxHa)}–${areaFormat.format(possible.highestMinHa)} ha`
+
+const roundDown = (value: number) => Math.floor(value * 10 + 1e-9) / 10
+const roundUp = (value: number) => Math.ceil(value * 10 - 1e-9) / 10
+
+export type CropAreaRangeError = {
+  message: string
+  fix: { bound: AreaBound; areaHa: number; label: string }
+}
+
+export const cropAreaRangeError = (
+  draft: CropAreaLimitDraft,
+  range: CropAreaRange | undefined,
+): CropAreaRangeError | null => {
+  if (!range || cropAreaLimitError(draft) !== null) return null
+  const possible = possibleCropArea(range)
+  const min = parseInput(draft.minHa)
+  const max = parseInput(draft.maxHa)
+  if (min !== null && min > possible.highestMinHa + RANGE_TOLERANCE_HA) {
+    const areaHa = roundDown(possible.highestMinHa)
+    return {
+      message:
+        `Højst ${areaFormat.format(possible.highestMinHa)} ha er muligt med ` +
+        'simuleringens sædskifter og låste marker.',
+      fix: {
+        bound: 'min',
+        areaHa,
+        label: `Brug ${areaFormat.format(areaHa)} ha`,
+      },
+    }
+  }
+  if (max !== null && max < possible.lowestMaxHa - RANGE_TOLERANCE_HA) {
+    const areaHa = roundUp(possible.lowestMaxHa)
+    return {
+      message:
+        `Mindst ${areaFormat.format(possible.lowestMaxHa)} ha ligger fast med ` +
+        'simuleringens sædskifter og låste marker.',
+      fix: {
+        bound: 'max',
+        areaHa,
+        label: `Brug ${areaFormat.format(areaHa)} ha`,
+      },
+    }
+  }
+  return null
+}
+
+export const cropAreaRangeWarnings = (
+  draft: CropAreaLimitDraft,
+  range: CropAreaRange | undefined,
+): string[] => {
+  if (!range || cropAreaLimitError(draft) !== null) return []
+  if (cropAreaRangeError(draft, range) !== null) return []
+  const optimize = optimizeBounds(range)
+  const yearly = yearlyBounds(range)
+  const min = parseInput(draft.minHa)
+  const max = parseInput(draft.maxHa)
+  const warnings: string[] = []
+  const inYears = (years: number[], fallback: string) =>
+    years.length > 0 ? `i ${years.join(', ')}` : fallback
+
+  if (min !== null) {
+    if (min > optimize.highestMinHa + RANGE_TOLERANCE_HA) {
+      warnings.push(
+        'Kun Års-optimeringen kan opfylde minimum – Optimér kan højst nå ' +
+          `${areaFormat.format(optimize.highestMinHa)} ha i gennemsnit.`,
+      )
+    }
+    if (min > yearly.highestMinHa + RANGE_TOLERANCE_HA) {
+      warnings.push(
+        'Kun Optimér kan opfylde minimum – Års-optimeringen kan højst nå ' +
+          `${areaFormat.format(yearly.highestMinHa)} ha ` +
+          `${inYears(yearly.highestMinYears, 'hvert år')}.`,
+      )
+    }
+  }
+  if (max !== null) {
+    if (max < optimize.lowestMaxHa - RANGE_TOLERANCE_HA) {
+      warnings.push(
+        'Kun Års-optimeringen kan overholde maksimum – Optimér har mindst ' +
+          `${areaFormat.format(optimize.lowestMaxHa)} ha i gennemsnit.`,
+      )
+    }
+    if (max < yearly.lowestMaxHa - RANGE_TOLERANCE_HA) {
+      warnings.push(
+        'Kun Optimér kan overholde maksimum – Års-optimeringen har mindst ' +
+          `${areaFormat.format(yearly.lowestMaxHa)} ha ` +
+          `${inYears(yearly.lowestMaxYears, 'hvert år')}.`,
+      )
+    }
+  }
+  return warnings
 }
 
 export type CropAreaViolation = {

@@ -171,6 +171,15 @@ export type CropAreaLimit = {
   maxAreaHa: number | null
 }
 
+export type CropAreaRange = {
+  cropCode: number
+  minAverageHa: number
+  maxAverageHa: number
+  minHaByYear: number[]
+  maxHaByYear: number[]
+  yearlyMaxAverageHa: number
+}
+
 export type OptimizationConstraints = {
   maxNLoadByCatchment: CatchmentNLoadCap[]
   minFeedUnits: number | null

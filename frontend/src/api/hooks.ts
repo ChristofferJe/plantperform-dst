@@ -9,6 +9,7 @@ import {
 import { createRequestQueue } from '@/api/request-queue'
 import type {
   FieldYearValues,
+  CropAreaRange,
   CropCodeOption,
   Farm,
   FarmMember,
@@ -193,6 +194,15 @@ export const scenarioCropCodesKey = (
 
 export const useScenarioCropCodes = (farmId?: string, simulationId?: string) =>
   useSWR<CropCodeOption[]>(scenarioCropCodesKey(farmId, simulationId), fetcher)
+
+export const cropAreaRangesKey = (farmId?: string, simulationId?: string) => {
+  if (!farmId || !simulationId) return null
+
+  return `/farms/${encodeURIComponent(farmId)}/simulations/${encodeURIComponent(simulationId)}/crop-area-ranges`
+}
+
+export const useCropAreaRanges = (farmId?: string, simulationId?: string) =>
+  useSWR<CropAreaRange[]>(cropAreaRangesKey(farmId, simulationId), fetcher)
 
 export const simulationFieldCandidateDetailKey = (
   farmId?: string,

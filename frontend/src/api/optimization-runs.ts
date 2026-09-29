@@ -6,6 +6,7 @@ import type {
   OptimizeSimulationResponse,
   YearlyOptimizeSimulationInput,
 } from '@/api/types'
+import type { CropAreaViolation } from '@/lib/crop-area-limits'
 import type { OptimizationChanges } from '@/lib/optimization-run'
 
 export type OptimizationRunRequest =
@@ -22,7 +23,11 @@ type OptimizationRunBase = OptimizationRunRequest & {
 export type OptimizationRun = OptimizationRunBase &
   (
     | { status: 'running' }
-    | { status: 'failed'; error: string }
+    | {
+        status: 'failed'
+        error: string
+        cropAreaViolations: CropAreaViolation[]
+      }
     | {
         status: 'succeeded'
         finishedAt: number

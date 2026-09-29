@@ -4,6 +4,7 @@ import type { FieldRecord } from '@/api/types'
 import {
   cropAreaLimitError,
   cropAreaLimitFromDraft,
+  cropAreaViolationsFromDetail,
   draftFromCropAreaLimit,
   emptyCropAreaLimitDraft,
   hectaresToPercent,
@@ -144,5 +145,27 @@ describe('sameCropAreaLimits', () => {
       false,
     )
     expect(sameCropAreaLimits([], [limit])).toBe(false)
+  })
+})
+
+describe('cropAreaViolationsFromDetail', () => {
+  it('reads the crop codes and years of an infeasible run', () => {
+    expect(
+      cropAreaViolationsFromDetail({
+        message: 'Kravene kan ikke opfyldes',
+        cropAreaViolations: [
+          { cropCode: POTATOES, years: [2027, 2029] },
+          { cropCode: 1, years: [] },
+        ],
+      }),
+    ).toEqual([
+      { cropCode: POTATOES, years: [2027, 2029] },
+      { cropCode: 1, years: [] },
+    ])
+  })
+
+  it('finds none in a plain error message', () => {
+    expect(cropAreaViolationsFromDetail('Simulering ikke fundet')).toEqual([])
+    expect(cropAreaViolationsFromDetail(undefined)).toEqual([])
   })
 })

@@ -9,11 +9,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   cropAreaLimitError,
+  cropAreaViolationMessage,
   emptyCropAreaLimitDraft,
   withHectares,
   withPercent,
   type AreaBound,
   type CropAreaLimitDraft,
+  type CropAreaViolation,
 } from '@/lib/crop-area-limits'
 import { cropGroupColor } from '@/lib/crop-groups'
 
@@ -88,6 +90,7 @@ type CropAreaLimitsEditorProps = {
   drafts: CropAreaLimitDraft[]
   cropCodes: CropCodeOption[]
   totalAreaHa: number
+  violations: CropAreaViolation[]
   onChange: (drafts: CropAreaLimitDraft[]) => void
 }
 
@@ -95,6 +98,7 @@ export const CropAreaLimitsEditor = ({
   drafts,
   cropCodes,
   totalAreaHa,
+  violations,
   onChange,
 }: CropAreaLimitsEditorProps) => {
   const [isPicking, setIsPicking] = useState(false)
@@ -102,6 +106,9 @@ export const CropAreaLimitsEditor = ({
   const nameByCode = useMemo(
     () => new Map(cropCodes.map((crop) => [crop.code, crop.name])),
     [cropCodes],
+  )
+  const violationByCode = new Map(
+    violations.map((violation) => [violation.cropCode, violation]),
   )
 
   const pickerItems = useMemo(() => {
@@ -149,11 +156,19 @@ export const CropAreaLimitsEditor = ({
             const name =
               nameByCode.get(draft.cropCode) ?? `Afgrødekode ${draft.cropCode}`
             const error = cropAreaLimitError(draft)
+            const violation = violationByCode.get(draft.cropCode)
             const errorId = `${idPrefix}-error`
+            const violationId = `${idPrefix}-violation`
+            const describedBy =
+              [error ? errorId : null, violation ? violationId : null]
+                .filter(Boolean)
+                .join(' ') || undefined
             return (
               <li
                 key={draft.cropCode}
-                className="space-y-2 rounded-lg border bg-background p-3"
+                className={`space-y-2 rounded-lg border bg-background p-3 ${
+                  violation ? 'border-destructive/60' : ''
+                }`}
               >
                 <div className="flex items-center gap-2">
                   <span
@@ -189,7 +204,7 @@ export const CropAreaLimitsEditor = ({
                       hectares={bound === 'min' ? draft.minHa : draft.maxHa}
                       percent={bound === 'min' ? draft.minPct : draft.maxPct}
                       percentDisabled={totalAreaHa <= 0}
-                      describedBy={error ? errorId : undefined}
+                      describedBy={describedBy}
                       onHectaresChange={(value) =>
                         replaceDraft(
                           index,
@@ -206,6 +221,12 @@ export const CropAreaLimitsEditor = ({
                   ))}
                 </div>
                 <FieldError id={errorId} message={error} />
+                <FieldError
+                  id={violationId}
+                  message={
+                    violation ? cropAreaViolationMessage(violation) : null
+                  }
+                />
               </li>
             )
           })}

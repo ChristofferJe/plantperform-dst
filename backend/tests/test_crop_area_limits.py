@@ -185,15 +185,17 @@ class CropAreaSolverTests(unittest.TestCase):
                 with self.subTest(yearly=yearly, bounds=limit):
                     self.assertEqual(_run(yearly, fields, (limit,)).status, "INFEASIBLE")
 
-    def test_standard_solver_repeats_cycles_through_2034(self) -> None:
-        # The first three years meet the minimum; the two cycles align without
-        # crop 1 in the fourth year.
+    def test_standard_solver_holds_the_average_over_the_period(self) -> None:
         fields = [
             ("a", 5, [("two_year", (1, 2), 10)]),
             ("b", 5, [("three_year", (2, 1, 2), 10)]),
         ]
-        output = _run(False, fields, (CropAreaLimit(afgrode_kode=1, min_area_ha=5),))
-        self.assertEqual(output.status, "INFEASIBLE")
+        for min_area, status in ((4.375, "OPTIMAL"), (4.4, "INFEASIBLE")):
+            with self.subTest(min_area=min_area):
+                limit = CropAreaLimit(afgrode_kode=1, min_area_ha=min_area)
+                self.assertEqual(_run(False, fields, (limit,)).status, status)
+        yearly = _run(True, fields, (CropAreaLimit(afgrode_kode=1, min_area_ha=4.375),))
+        self.assertEqual(yearly.status, "INFEASIBLE")
 
     def test_yearly_solver_uses_shifted_eight_year_sequences(self) -> None:
         fields = [

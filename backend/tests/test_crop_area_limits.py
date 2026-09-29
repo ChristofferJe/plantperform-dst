@@ -23,6 +23,7 @@ from app.domain.simulation import (
     OptimizationConstraints,
     Simulation,
 )
+from app.services.optimization.crop_area_ranges import crop_area_ranges
 from app.services.optimization.engine import solve
 from app.services.optimization.models import (
     NUM_YEARS,
@@ -315,6 +316,72 @@ class CropAreaPersistenceTests(unittest.TestCase):
         cleared = patch_constraints(old_client_patch, {"cropAreaLimits": []})
         self.assertEqual(cleared.constraints.crop_area_limits, [])
         self.assertEqual(cleared.constraints.min_fen, 12)
+
+
+BEANS, BARLEY, GRASS = 31, 1, 252
+
+
+def _field(field_id: str, area_ha: float, locked_to: str | None = None) -> SimpleNamespace:
+    locked_id = f"{locked_to}:1:100" if locked_to else None
+    return SimpleNamespace(
+        id=field_id,
+        area_ha=area_ha,
+        rotation_id=locked_id,
+        allowed_rotation_ids=[locked_id] if locked_id else [],
+    )
+
+
+def _by_code(ranges):
+    return {area_range.afgrode_kode: area_range for area_range in ranges}
+
+
+class CropAreaRangeTests(unittest.TestCase):
+    def test_average_is_capped_by_how_often_a_rotation_has_the_crop(self) -> None:
+        beans_rotation = _candidate("62", (BARLEY, BARLEY, BEANS, BARLEY))
+        barley_only = _candidate("1", (BARLEY,))
+        ranges = _by_code(crop_area_ranges(
+            [_field("a", 30), _field("b", 10)],
+            {"a": [beans_rotation, barley_only], "b": [beans_rotation, barley_only]},
+        ))
+        self.assertEqual(ranges[BEANS].min_average_ha, 0)
+        self.assertEqual(ranges[BEANS].max_average_ha, 10)
+        self.assertEqual(ranges[BARLEY].min_average_ha, 30)
+        self.assertEqual(ranges[BARLEY].max_average_ha, 40)
+
+    def test_yearly_run_can_start_a_free_rotation_in_any_year(self) -> None:
+        ranges = _by_code(crop_area_ranges(
+            [_field("a", 5)],
+            {"a": [_candidate("62", (BARLEY, BEANS))]},
+        ))
+        self.assertEqual(ranges[BEANS].max_ha_by_year, (5,) * NUM_YEARS)
+        self.assertEqual(ranges[BEANS].min_ha_by_year, (0,) * NUM_YEARS)
+
+    def test_yearly_average_counts_the_best_start_year(self) -> None:
+        ranges = _by_code(crop_area_ranges(
+            [_field("a", 8)],
+            {"a": [_candidate("62", (BARLEY, BARLEY, BEANS))]},
+        ))
+        self.assertEqual(ranges[BEANS].max_average_ha, 2)
+        self.assertEqual(ranges[BEANS].yearly_max_average_ha, 3)
+
+    def test_locked_field_counts_only_its_selected_rotation(self) -> None:
+        ranges = _by_code(crop_area_ranges(
+            [_field("a", 4, locked_to="62")],
+            {"a": [_candidate("1", (GRASS,)), _candidate("62", (BEANS, BARLEY))]},
+        ))
+        self.assertNotIn(GRASS, ranges)
+        self.assertEqual(ranges[BEANS].min_average_ha, 2)
+        self.assertEqual(ranges[BEANS].max_average_ha, 2)
+        self.assertEqual(ranges[BEANS].min_ha_by_year, (4, 0) * (NUM_YEARS // 2))
+        self.assertEqual(ranges[BEANS].max_ha_by_year, (4, 0) * (NUM_YEARS // 2))
+
+    def test_a_crop_in_every_rotation_every_year_sets_a_floor(self) -> None:
+        ranges = _by_code(crop_area_ranges(
+            [_field("a", 3)],
+            {"a": [_candidate("g1", (GRASS,)), _candidate("g2", (GRASS, GRASS))]},
+        ))
+        self.assertEqual(ranges[GRASS].min_average_ha, 3)
+        self.assertEqual(ranges[GRASS].min_ha_by_year, (3,) * NUM_YEARS)
 
 
 if __name__ == "__main__":

@@ -34,6 +34,7 @@ from app.domain.simulation import (
     OptimizationConstraints,
     Simulation,
 )
+from app.services.optimization.crop_area_ranges import crop_area_ranges
 from app.services.optimization.orchestrator import (
     ManualRotationNotFoundError,
     OptimizationInfeasibleError,
@@ -178,6 +179,42 @@ def get_farm_simulation_afgroder_i_brug(
         ),
         key=lambda option: option.navn,
     )
+
+
+class CropAreaRangeResponse(CamelModel):
+    afgrode_kode: int
+    min_average_ha: float
+    max_average_ha: float
+    min_ha_by_year: list[float]
+    max_ha_by_year: list[float]
+    yearly_max_average_ha: float
+
+
+@router.get("/{simulation_id}/crop-area-ranges", response_model=list[CropAreaRangeResponse])
+def get_farm_simulation_crop_area_ranges(
+    farm_id: str,
+    simulation_id: str,
+    user: CurrentUser,
+) -> list[CropAreaRangeResponse]:
+    fields = list_simulation_fields(farm_id, simulation_id, user.email)
+    field_candidates = list_simulation_field_candidates(farm_id, simulation_id, user.email)
+    if fields is None or field_candidates is None:
+        raise HTTPException(status_code=404, detail="Simulering ikke fundet")
+
+    ranges = crop_area_ranges(
+        fields, {row.field_id: row.candidates for row in field_candidates},
+    )
+    return [
+        CropAreaRangeResponse(
+            afgrode_kode=area_range.afgrode_kode,
+            min_average_ha=area_range.min_average_ha,
+            max_average_ha=area_range.max_average_ha,
+            min_ha_by_year=list(area_range.min_ha_by_year),
+            max_ha_by_year=list(area_range.max_ha_by_year),
+            yearly_max_average_ha=area_range.yearly_max_average_ha,
+        )
+        for area_range in ranges
+    ]
 
 
 @router.post("/{simulation_id}/optimize", response_model=OptimizeSimulationResponse)

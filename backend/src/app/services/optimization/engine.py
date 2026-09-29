@@ -16,6 +16,14 @@ def _scale(value: float) -> int:
     return round(value * SCALE)
 
 
+def _years_with_crop(crop_codes: tuple[int, ...], afgrode_kode: int) -> int:
+    if not crop_codes:
+        return 0
+    return sum(
+        crop_codes[year % len(crop_codes)] == afgrode_kode for year in range(NUM_YEARS)
+    )
+
+
 def solve(input: OptimizationInput) -> OptimizationOutput:
     model = cp_model.CpModel()
     choice_vars: dict[tuple[str, str], cp_model.IntVar] = {}
@@ -65,26 +73,25 @@ def solve(input: OptimizationInput) -> OptimizationOutput:
     constraints = input.constraints
 
     for limit in constraints.crop_area_limits:
-        for year in range(NUM_YEARS):
-            chosen_area = sum(
-                _scale(field.area_ha) * choice_vars[(field.id, option.key)]
-                for field in input.fields
-                for option in field.options
-                if option.years
-                and option.years[year % len(option.years)].afgrode_kode == limit.afgrode_kode
+        chosen_area = sum(
+            _scale(field.area_ha)
+            * _years_with_crop(
+                tuple(year.afgrode_kode for year in option.years), limit.afgrode_kode,
             )
-            fixed_area = sum(
-                _scale(fixed.area_ha)
-                for fixed in input.fixed_fields
-                if fixed.crop_codes_by_year
-                and fixed.crop_codes_by_year[year % len(fixed.crop_codes_by_year)]
-                == limit.afgrode_kode
-            )
-            total_area = chosen_area + fixed_area
-            if limit.min_area_ha is not None:
-                model.Add(total_area >= _scale(limit.min_area_ha))
-            if limit.max_area_ha is not None:
-                model.Add(total_area <= _scale(limit.max_area_ha))
+            * choice_vars[(field.id, option.key)]
+            for field in input.fields
+            for option in field.options
+        )
+        fixed_area = sum(
+            _scale(fixed.area_ha)
+            * _years_with_crop(fixed.crop_codes_by_year, limit.afgrode_kode)
+            for fixed in input.fixed_fields
+        )
+        area_over_years = chosen_area + fixed_area
+        if limit.min_area_ha is not None:
+            model.Add(area_over_years >= _scale(limit.min_area_ha) * NUM_YEARS)
+        if limit.max_area_ha is not None:
+            model.Add(area_over_years <= _scale(limit.max_area_ha) * NUM_YEARS)
 
     for kystvand_id, cap in constraints.max_n_load_by_kystvandopland.items():
         n_load_for_kystvand = kvotegivende_n_load_by_kystvand.get(kystvand_id)

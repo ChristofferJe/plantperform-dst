@@ -14,13 +14,13 @@ const DONUT_RADIUS = 40
 const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS
 const DONUT_GAP = 0.8
 const TWO_COLUMN_MIN_ROWS = 6
+const ROW_CLASS_NAME = 'col-span-4 grid grid-cols-subgrid px-1'
 
 type ColumnHeadingsProps = {
   className: string
-  areaClassName: string
 }
 
-const ColumnHeadings = ({ className, areaClassName }: ColumnHeadingsProps) => (
+const ColumnHeadings = ({ className }: ColumnHeadingsProps) => (
   <li
     aria-hidden="true"
     className={cn(
@@ -29,13 +29,24 @@ const ColumnHeadings = ({ className, areaClassName }: ColumnHeadingsProps) => (
     )}
   >
     <span className="col-span-2">Afgrøde</span>
-    <span className={cn('text-right', areaClassName)}>Areal</span>
+    <span className="text-right">
+      Areal
+      <span className="block">ha</span>
+    </span>
     <span className="text-right">
       Udledning
       <span className="block">kg N/ha</span>
     </span>
   </li>
 )
+
+const areaFormat = new Intl.NumberFormat('da-DK', {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+})
+
+const formatArea = (areaHa: number) =>
+  areaHa > 0 && areaHa < 0.1 ? '< 0,1' : areaFormat.format(areaHa)
 
 type CropDistributionProps = {
   shares: CropShare[]
@@ -49,17 +60,12 @@ export const CropDistribution = ({ shares }: CropDistributionProps) => {
   const firstColumnSize = twoColumns
     ? Math.ceil(shares.length / 2)
     : shares.length
-  const rowClassName = cn(
-    'col-span-4 grid grid-cols-subgrid px-1',
-    twoColumns ? '@3xl:col-span-5' : '@lg:col-span-5',
-  )
   const sideClassName = (index: number) =>
     twoColumns
       ? index < firstColumnSize
         ? '@sm:pr-2'
         : '@sm:border-l @sm:pl-2'
       : ''
-  const areaSpanClassName = twoColumns ? '@3xl:col-span-2' : '@lg:col-span-2'
   const gap = shares.length > 1 ? DONUT_GAP : 0
   const arcs: { entry: CropShare; length: number; offset: number }[] = []
   let offset = 0
@@ -136,8 +142,8 @@ export const CropDistribution = ({ shares }: CropDistributionProps) => {
         className={cn(
           'grid w-full min-w-0 content-start grid-cols-[auto_minmax(0,1fr)_auto_auto]',
           twoColumns
-            ? 'gap-x-1.5 text-xs @sm:grid-flow-col @sm:grid-cols-[repeat(2,auto_minmax(0,1fr)_auto_auto)] @sm:grid-rows-[repeat(var(--rows),auto)] @lg:w-auto @lg:flex-1 @xl:gap-x-2 @xl:text-[13px] @3xl:grid-cols-[repeat(2,auto_minmax(0,1fr)_auto_auto_auto)]'
-            : 'gap-x-2 text-[13px] @md:w-auto @md:flex-1 @lg:grid-cols-[auto_minmax(0,1fr)_auto_auto_auto]',
+            ? 'gap-x-1.5 text-xs @sm:grid-flow-col @sm:grid-cols-[repeat(2,auto_minmax(0,1fr)_auto_auto)] @sm:grid-rows-[repeat(var(--rows),auto)] @lg:w-auto @lg:flex-1 @xl:gap-x-2 @xl:text-[13px]'
+            : 'gap-x-2 text-[13px] @md:w-auto @md:flex-1',
         )}
         style={
           twoColumns
@@ -145,25 +151,21 @@ export const CropDistribution = ({ shares }: CropDistributionProps) => {
             : undefined
         }
       >
-        <ColumnHeadings
-          className={cn(rowClassName, sideClassName(0))}
-          areaClassName={areaSpanClassName}
-        />
+        <ColumnHeadings className={cn(ROW_CLASS_NAME, sideClassName(0))} />
         {shares.map((entry, index) => (
           <Fragment key={entry.id}>
             {twoColumns && index === firstColumnSize ? (
               <ColumnHeadings
                 className={cn(
-                  rowClassName,
+                  ROW_CLASS_NAME,
                   sideClassName(index),
                   'hidden @sm:grid',
                 )}
-                areaClassName={areaSpanClassName}
               />
             ) : null}
             <li
               className={cn(
-                rowClassName,
+                ROW_CLASS_NAME,
                 sideClassName(index),
                 'items-center border-b border-border/60 py-1 leading-5',
                 hovered === entry.id && 'bg-muted',
@@ -175,17 +177,9 @@ export const CropDistribution = ({ shares }: CropDistributionProps) => {
               <TruncatedTooltip content={entry.label} className="truncate">
                 {entry.label}
               </TruncatedTooltip>
-              <span
-                className={cn(
-                  'text-right text-[11px] text-muted-foreground tabular-nums',
-                  twoColumns ? 'hidden @3xl:block' : 'hidden @lg:block',
-                )}
-              >
-                {formatNumber(entry.areaHa)} ha
-              </span>
               <span className="text-right font-semibold tabular-nums">
-                {formatShare(entry.share)}
-                <span className="sr-only"> af arealet, udledning</span>
+                {formatArea(entry.areaHa)}
+                <span className="sr-only"> hektar, udledning</span>
               </span>
               <AppTooltip
                 content={`${formatWholeNumber(entry.nLoadKgHa * entry.areaHa)} kg N i alt`}

@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
-import type { FieldRecord } from '@/api/types'
+import type { FieldRecord, RotationYear } from '@/api/types'
 import {
   cropAreaLimitError,
   cropAreaLimitFromDraft,
+  cropAreaLimitWarning,
   cropAreaViolationsFromDetail,
+  currentCropArea,
+  currentCropAreaLabel,
   draftFromCropAreaLimit,
   emptyCropAreaLimitDraft,
+  fieldAreaSums,
   hectaresToPercent,
   percentRangeLabel,
   sameCropAreaLimits,
@@ -178,5 +182,77 @@ describe('cropAreaViolationsFromDetail', () => {
   it('finds none in a plain error message', () => {
     expect(cropAreaViolationsFromDetail('Simulering ikke fundet')).toEqual([])
     expect(cropAreaViolationsFromDetail(undefined)).toEqual([])
+  })
+})
+
+const year = (cropCode: number): RotationYear => ({
+  cropCode,
+  cropName: String(cropCode),
+  undersownCropCode: null,
+  undersownCropName: null,
+})
+
+const field = (areaHa: number, codes: number[] = []) =>
+  ({ areaHa, cropRotation: codes.map(year) }) as FieldRecord
+
+describe('currentCropArea', () => {
+  it('repeats each rotation through the eight planning years', () => {
+    const fields = [
+      field(10, [POTATOES, 1]),
+      field(20, [2, POTATOES, 2]),
+      field(5),
+    ]
+    expect(currentCropArea(fields, POTATOES)).toEqual({
+      averageHa: 12.5,
+      minYearHa: 0,
+      maxYearHa: 30,
+    })
+  })
+
+  it('describes the average and the range per year', () => {
+    expect(
+      currentCropAreaLabel({ averageHa: 12.5, minYearHa: 0, maxYearHa: 30 }),
+    ).toBe('Nu: 12,5 ha i gns. (0–30 ha pr. år)')
+    expect(
+      currentCropAreaLabel({ averageHa: 20, minYearHa: 20, maxYearHa: 20 }),
+    ).toBe('Nu: 20 ha hvert år')
+    expect(
+      currentCropAreaLabel({ averageHa: 0, minYearHa: 0, maxYearHa: 0 }),
+    ).toBe('Nu: ingen')
+  })
+})
+
+describe('cropAreaLimitWarning', () => {
+  const fields = [field(12), field(17), field(25)]
+  const sums = fieldAreaSums(fields)
+
+  it('warns when no whole fields add up to the range', () => {
+    expect(
+      cropAreaLimitWarning(draft({ minHa: '20', maxHa: '22' }), 54, sums),
+    ).toBe(
+      'Ingen kombination af hele marker giver mellem 20 og 22 ha, så ' +
+        'års-optimeringen kan ikke opfylde kravet. Gør spændet større.',
+    )
+  })
+
+  it('accepts a range that whole fields can hit', () => {
+    expect(
+      cropAreaLimitWarning(draft({ minHa: '28', maxHa: '30' }), 54, sums),
+    ).toBeNull()
+    expect(
+      cropAreaLimitWarning(draft({ minHa: '12', maxHa: '12' }), 54, sums),
+    ).toBeNull()
+  })
+
+  it('warns when the minimum is above the total area', () => {
+    expect(cropAreaLimitWarning(draft({ minHa: '60' }), 54, sums)).toBe(
+      'Minimum er større end simuleringens samlede areal på 54 ha.',
+    )
+  })
+
+  it('leaves invalid rows to the error', () => {
+    expect(
+      cropAreaLimitWarning(draft({ minHa: '30', maxHa: '20' }), 54, sums),
+    ).toBeNull()
   })
 })

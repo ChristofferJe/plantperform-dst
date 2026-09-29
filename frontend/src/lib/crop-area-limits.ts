@@ -1,4 +1,5 @@
 import type { CropAreaLimit, FieldRecord } from '@/api/types'
+import { NUM_ROTATION_YEARS } from '@/lib/field-domain'
 
 export type AreaBound = 'min' | 'max'
 
@@ -134,6 +135,103 @@ export const percentRangeLabel = (draft: CropAreaLimitDraft): string | null => {
   if (max !== null && !Number.isNaN(max))
     return `Højst ${format(max)} % af arealet`
   return null
+}
+
+export type CurrentCropArea = {
+  averageHa: number
+  minYearHa: number
+  maxYearHa: number
+}
+
+export const currentCropArea = (
+  fields: FieldRecord[],
+  cropCode: number,
+): CurrentCropArea => {
+  const areaByYear = Array.from({ length: NUM_ROTATION_YEARS }, () => 0)
+  for (const field of fields) {
+    const rotation = field.cropRotation
+    if (rotation.length === 0) continue
+    areaByYear.forEach((_, year) => {
+      if (rotation[year % rotation.length].cropCode === cropCode) {
+        areaByYear[year] += field.areaHa
+      }
+    })
+  }
+  return {
+    averageHa:
+      areaByYear.reduce((total, area) => total + area, 0) / NUM_ROTATION_YEARS,
+    minYearHa: Math.min(...areaByYear),
+    maxYearHa: Math.max(...areaByYear),
+  }
+}
+
+export const currentCropAreaLabel = (area: CurrentCropArea) => {
+  const minYear = areaFormat.format(area.minYearHa)
+  const maxYear = areaFormat.format(area.maxYearHa)
+  if (area.maxYearHa === 0) return 'Nu: ingen'
+  if (minYear === maxYear) return `Nu: ${maxYear} ha hvert år`
+  return `Nu: ${areaFormat.format(area.averageHa)} ha i gns. (${minYear}–${maxYear} ha pr. år)`
+}
+
+export type FieldAreaSums = {
+  reachable: Uint8Array
+  toleranceUnits: number
+}
+
+const SUM_UNITS_PER_HA = 100
+const MAX_SUM_WORK = 20_000_000
+
+export const fieldAreaSums = (fields: FieldRecord[]): FieldAreaSums | null => {
+  const units = fields
+    .map((field) => Math.round(field.areaHa * SUM_UNITS_PER_HA))
+    .filter((unit) => unit > 0)
+  const totalUnits = units.reduce((total, unit) => total + unit, 0)
+  if (totalUnits * units.length > MAX_SUM_WORK) return null
+  const reachable = new Uint8Array(totalUnits + 1)
+  reachable[0] = 1
+  let reachedUnits = 0
+  for (const unit of units) {
+    for (let sum = reachedUnits; sum >= 0; sum--) {
+      if (reachable[sum]) reachable[sum + unit] = 1
+    }
+    reachedUnits += unit
+  }
+  return { reachable, toleranceUnits: Math.ceil(units.length / 2) }
+}
+
+const hasSumBetween = (sums: FieldAreaSums, minHa: number, maxHa: number) => {
+  const from = Math.max(
+    0,
+    Math.floor(minHa * SUM_UNITS_PER_HA) - sums.toleranceUnits,
+  )
+  const to = Math.min(
+    sums.reachable.length - 1,
+    Math.ceil(maxHa * SUM_UNITS_PER_HA) + sums.toleranceUnits,
+  )
+  for (let sum = from; sum <= to; sum++) {
+    if (sums.reachable[sum]) return true
+  }
+  return false
+}
+
+export const cropAreaLimitWarning = (
+  draft: CropAreaLimitDraft,
+  totalAreaHa: number,
+  sums: FieldAreaSums | null,
+): string | null => {
+  if (cropAreaLimitError(draft) !== null) return null
+  const min = parseInput(draft.minHa)
+  const max = parseInput(draft.maxHa)
+  if (min !== null && min > totalAreaHa) {
+    return `Minimum er større end simuleringens samlede areal på ${areaFormat.format(totalAreaHa)} ha.`
+  }
+  if (min === null || max === null || sums === null) return null
+  if (hasSumBetween(sums, min, max)) return null
+  return (
+    `Ingen kombination af hele marker giver mellem ${areaFormat.format(min)} ` +
+    `og ${areaFormat.format(max)} ha, så års-optimeringen kan ikke opfylde ` +
+    'kravet. Gør spændet større.'
+  )
 }
 
 export type CropAreaViolation = {

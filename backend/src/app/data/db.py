@@ -122,6 +122,8 @@ afgroede_table = Table(
     Column("norm_navn", Text, nullable=True),
     Column("permanent", Boolean, nullable=False, server_default=false()),
     Column("has_nuar", Boolean, nullable=False, server_default=false()),
+    Column("er_hovedafgrode", Boolean, nullable=False, server_default=false()),
+    Column("grund6procent", Boolean, nullable=False, server_default=false()),
     Column("m", SmallInteger, nullable=True),
     Column("w", SmallInteger, nullable=True),
     Column("wc", SmallInteger, nullable=True),

@@ -123,6 +123,8 @@ def _load_nuar_koder() -> dict[int, dict]:
             "WC_ambig": row.wc_ambig,
             "MP_ambig": row.mp_ambig,
             "WP_ambig": row.wp_ambig,
+            "er_hovedafgrode": row.er_hovedafgrode,
+            "grund6procent": row.grund6procent,
         }
         for row in rows
         if row.has_nuar

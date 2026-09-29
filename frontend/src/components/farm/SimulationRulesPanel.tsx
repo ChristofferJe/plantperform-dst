@@ -5,7 +5,10 @@ import { mutate } from 'swr'
 import { ApiError } from '@/api/client'
 import { simulationsKey, useScenarioCropCodes } from '@/api/hooks'
 import { updateSimulationConstraints } from '@/api/mutations'
-import { useOptimizationRunActions } from '@/api/optimization-runs'
+import {
+  useOptimizationRun,
+  useOptimizationRunActions,
+} from '@/api/optimization-runs'
 import type { FieldRecord, CatchmentNLoadCap, Simulation } from '@/api/types'
 import {
   catchmentKey,
@@ -103,6 +106,9 @@ export const SimulationRulesPanel = ({
       draftFromCropAreaLimit(limit, totalAreaHa),
     ),
   )
+  const run = useOptimizationRun(simulation.id)
+  const cropAreaViolations =
+    run?.status === 'failed' ? run.cropAreaViolations : []
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isSaved, setIsSaved] = useState(false)
@@ -296,6 +302,7 @@ export const SimulationRulesPanel = ({
             drafts={cropAreaLimitDrafts}
             cropCodes={cropCodes}
             totalAreaHa={totalAreaHa}
+            violations={cropAreaViolations}
             onChange={editCropAreaLimits}
           />
           <div className="flex flex-wrap items-center gap-3">

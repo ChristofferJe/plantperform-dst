@@ -135,3 +135,31 @@ export const sameCropAreaLimits = (
       limit.minAreaHa === right[index].minAreaHa &&
       limit.maxAreaHa === right[index].maxAreaHa,
   )
+
+export type CropAreaViolation = {
+  cropCode: number
+  years: number[]
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+export const cropAreaViolationsFromDetail = (
+  detail: unknown,
+): CropAreaViolation[] => {
+  if (!isRecord(detail) || !Array.isArray(detail.cropAreaViolations)) return []
+  return detail.cropAreaViolations.flatMap((item: unknown) => {
+    if (!isRecord(item)) return []
+    const cropCode = item.cropCode
+    if (typeof cropCode !== 'number') return []
+    const years = Array.isArray(item.years)
+      ? item.years.filter((year): year is number => typeof year === 'number')
+      : []
+    return [{ cropCode, years }]
+  })
+}
+
+export const cropAreaViolationMessage = (violation: CropAreaViolation) =>
+  violation.years.length === 0
+    ? 'Optimeringen kan ikke opfylde kravet i gennemsnit over perioden.'
+    : `Optimeringen kan ikke opfylde kravet i ${violation.years.join(', ')}.`

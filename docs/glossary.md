@@ -47,7 +47,7 @@ field" column is the name on the wire.
 | afgrødekode, -navn | `cropCode`, `cropName`, `CropCodeOption` | `afgrodeKode`, `afgrodeNavn` | |
 | afgrødegruppe | `CropGroup`, `classifyCrop`, `cropGroupFor` | | The groups the map, the year strip and the crop distribution colour by |
 | afgrødefordeling | `CropShare`, `CropShareLevel`, `summarizeCropDistribution` | | Area and N load per crop group or per crop for a year, or the average per year |
-| afgrødearealkrav | `CropAreaLimit`, `cropAreaLimits`, `minAreaHa`, `maxAreaHa` | `cropAreaLimits`, `minAreaHa`, `maxAreaHa` | Min. and/or max. hectares of one afgrødekode under Regler; percent is of the simulation's total area |
+| afgrødearealkrav | `CropAreaLimit`, `cropAreaLimits`, `minAreaHa`, `maxAreaHa`, `CropAreaViolation` | `cropAreaLimits`, `minAreaHa`, `maxAreaHa`, `cropAreaViolations` | Min. and/or max. hectares of one afgrødekode under Regler; percent is of the simulation's total area |
 | udlæg | `undersownCropCode`, `undersownCropName`, `undersownCropSet` | `udlaegKode`, `udlaegNavn`, `udlaegSet` | |
 | efterafgrøde | catch crop | | EEA in formula names |
 | mellemafgrøde | `intermediateCrop` | `mellemafgrode` | |

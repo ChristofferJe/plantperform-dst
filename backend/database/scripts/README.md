@@ -52,12 +52,8 @@ men hele kæden er ikke én fælles transaction.
 | 5 | `load-historisk-goedningsfordeling` | Erstatter referencen for faktisk gødningstildeling i 2025/2026. |
 | 6 | `load-saedskifte-lookup` | Erstatter sædskifte-rotationer og kategorier. |
 | 7 | `load-afgroeder` | Erstatter `afgroede`, afgrødenormer og N-fiksering samlet fra `Afgroedetabel2027_master.csv` og registrerede historiske koder. |
-| 8 | `load-salgspriser` | Erstatter afgrøde-salgspriser. |
-| 9 | `load-halmudbytte` | Erstatter halmudbytter. |
-| 10 | `load-arbejdssatser` | Erstatter priser pr. arbejdsenhed. |
-| 11 | `load-arbejdsmaengder` | Erstatter afgrødespecifikke arbejdsmængder. |
-| 12 | `load-dyrkningsomkostninger` | Erstatter faste dyrkningsomkostninger. |
-| 13 | `load-prisliste` | Erstatter den fælles pris- og tilskudsliste. |
+| 8 | `load-oekonomital-afgroedebundet` | Erstatter salgspris, halmudbytte, arbejdsmængder og faste dyrkningsomkostninger. |
+| 9 | `load-oekonomital-generelle-satser` | Erstatter arbejdssatser og den fælles pris- og tilskudsliste. |
 
 Trin 2 er destruktivt: det erstatter `registry_field`, så gemte bedrifter og
 scenarier med gamle `imk_id` kan blive forældreløse. Brug derfor ikke denne
@@ -116,12 +112,8 @@ hvert enkelt script i den aktuelle kæde.
 | `load_historisk_goedningsfordeling.py` | `Historisk_goedningsfordeling_2025_og_2026_bilag3_lookup.csv` | Erstatter historiske mineral- og organiske N-input pr. region, driftsform, afgrøde og JB-nr. |
 | `load_saedskifte_lookup.py` | `Ny_sædskifte_lookup_sammenlagt.csv` | Validerer og erstatter `saedskifte_rotation` og `saedskifte_category`; det er rotation-candidates' datakilde. |
 | `load_afgroeder.py` | `Afgroedetabel2027_master.csv`, registrerede afgrødekoder | Validerer alle per-kode værdier og erstatter `afgroede`, normer og N-fiksering i én transaktion. Historiske koder uden referenceværdier får tomme valgfrie felter; et tilgængeligt merged GeoPackage giver navn. |
-| `load_salgspriser.py` | `Salgspriser_afgroedekoder.csv` | Erstatter salgspris, enhed og halmpris pr. afgrøde, driftsform og kvalitet. |
-| `load_halmudbytte.py` | `Halmudbytte_afgroedekoder.csv` | Erstatter halmudbytte pr. afgrøde og jordbonitetsgruppe. |
-| `load_arbejdssatser.py` | `Arbejdssatser.csv` | Erstatter enhedspriser pr. behandling og jordbonitet, med eventuelle afgrøde-/driftsformsoverrides. |
-| `load_arbejdsmaengder.py` | `Arbejdsmaengder_afgroedekoder.csv` | Erstatter arbejdsmængder pr. afgrøde, driftsform, jordbonitet, kvalitet og behandling. |
-| `load_dyrkningsomkostninger.py` | `Dyrkningsomkostninger_afgroedekoder.csv` | Erstatter faste dyrkningsomkostninger. Gødning beholdes i kilden, men beregnes dynamisk ved runtime. |
-| `load_prisliste.py` | `Prisliste_2026.csv` | Erstatter delte priser og tilskud, fx N-pris, udbringning, udsæd, etablering og arealstøtte. |
+| `load_oekonomital_afgroedebundet.py` | `Oekonomital_afgroedebundet.csv` | Erstatter salgspris, halmudbytte, arbejdsmængder og faste dyrkningsomkostninger — splitter rækker på CSV'ens egen `kilde_tabel`-kolonne. Gødning beholdes i kilden, men beregnes dynamisk ved runtime. |
+| `load_oekonomital_generelle_satser.py` | `Oekonomital_generelle_satser.csv` | Erstatter enhedspriser pr. behandling/jordbonitet og den fælles pris- og tilskudsliste — splitter rækker på CSV'ens egen `kilde_tabel`-kolonne. |
 
 Norm-, N-fikserings-, NUAR-, P-afstrømnings- og permanent-afgrøde-data
 kommer fra `Afgroedetabel2027_master.csv` (én række pr. afgrødekode).
@@ -129,6 +121,9 @@ kommer fra `Afgroedetabel2027_master.csv` (én række pr. afgrødekode).
 N-fiksering i én transaktion. De tre ældre loader-navne delegerer til denne
 samlede indlæsning. `load_kvotegivende_areal.py` bruger samme CSV, men
 opdaterer `registry_field` separat og indgår ikke i `load-registry-data`.
+De seks tidligere økonomi-CSV'er er konsolideret til to kilder. Begge
+økonomi-loaders validerer deres kilde før de erstatter destinationstabellerne
+i hver sin transaktion.
 
 ### Ældre og selvstændige load-scripts
 

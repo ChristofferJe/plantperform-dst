@@ -3,7 +3,11 @@ import { useState } from 'react'
 import { mutate } from 'swr'
 
 import { ApiError } from '@/api/client'
-import { simulationsKey, useScenarioCropCodes } from '@/api/hooks'
+import {
+  simulationsKey,
+  useCropAreaRanges,
+  useScenarioCropCodes,
+} from '@/api/hooks'
 import { updateSimulationConstraints } from '@/api/mutations'
 import {
   useOptimizationRun,
@@ -32,6 +36,7 @@ import { Label } from '@/components/ui/label'
 import {
   cropAreaLimitError,
   cropAreaLimitFromDraft,
+  cropAreaRangeError,
   draftFromCropAreaLimit,
   sameCropAreaLimits,
   totalFieldAreaHa,
@@ -99,6 +104,7 @@ export const SimulationRulesPanel = ({
   )
   const totalAreaHa = totalFieldAreaHa(fields)
   const { data: cropCodes = [] } = useScenarioCropCodes(farmId, simulation.id)
+  const { data: cropAreaRanges = [] } = useCropAreaRanges(farmId, simulation.id)
   const [cropAreaLimitDrafts, setCropAreaLimitDrafts] = useState<
     CropAreaLimitDraft[]
   >(() =>
@@ -124,8 +130,13 @@ export const SimulationRulesPanel = ({
   )
 
   const cropAreaLimits = cropAreaLimitDrafts.map(cropAreaLimitFromDraft)
+  const rangeByCode = new Map(
+    cropAreaRanges.map((range) => [range.cropCode, range]),
+  )
   const hasCropAreaLimitErrors = cropAreaLimitDrafts.some(
-    (draft) => cropAreaLimitError(draft) !== null,
+    (draft) =>
+      cropAreaLimitError(draft) !== null ||
+      cropAreaRangeError(draft, rangeByCode.get(draft.cropCode)) !== null,
   )
 
   const savedMaxNLoadByKey = new Map(
@@ -305,6 +316,7 @@ export const SimulationRulesPanel = ({
             drafts={cropAreaLimitDrafts}
             cropCodes={cropCodes}
             fields={fields}
+            ranges={cropAreaRanges}
             totalAreaHa={totalAreaHa}
             violations={cropAreaViolations}
             onChange={editCropAreaLimits}

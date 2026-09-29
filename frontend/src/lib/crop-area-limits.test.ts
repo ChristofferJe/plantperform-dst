@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import type { FieldRecord, RotationYear } from '@/api/types'
+import type { CropAreaRange, FieldRecord, RotationYear } from '@/api/types'
 import {
   cropAreaLimitError,
   cropAreaLimitFromDraft,
   cropAreaLimitWarning,
+  cropAreaRangeError,
+  cropAreaRangeWarnings,
   cropAreaViolationsFromDetail,
   currentCropArea,
   currentCropAreaLabel,
@@ -12,7 +14,9 @@ import {
   emptyCropAreaLimitDraft,
   fieldAreaSums,
   hectaresToPercent,
+  possibleCropArea,
   percentRangeLabel,
+  possibleCropAreaLabel,
   sameCropAreaLimits,
   totalFieldAreaHa,
   withHectares,
@@ -254,5 +258,61 @@ describe('cropAreaLimitWarning', () => {
     expect(
       cropAreaLimitWarning(draft({ minHa: '30', maxHa: '20' }), 54, sums),
     ).toBeNull()
+  })
+})
+
+describe('possible crop area', () => {
+  const beans: CropAreaRange = {
+    cropCode: POTATOES,
+    minAverageHa: 0.5,
+    maxAverageHa: 7.54,
+    minHaByYear: [0, 4, 0, 0, 0, 0, 0, 0],
+    maxHaByYear: [30, 30, 30, 30, 30, 30, 30, 30],
+    yearlyMaxAverageHa: 7.54,
+  }
+
+  it('takes the widest of the two optimizations', () => {
+    expect(possibleCropArea(beans)).toEqual({
+      lowestMaxHa: 0.5,
+      highestMinHa: 7.54,
+    })
+    expect(possibleCropAreaLabel(possibleCropArea(beans))).toBe(
+      'Muligt: 0,5–7,5 ha',
+    )
+  })
+
+  it('blocks a minimum neither optimization can reach, with a fix', () => {
+    expect(cropAreaRangeError(draft({ minHa: '10' }), beans)).toEqual({
+      message:
+        'Højst 7,5 ha er muligt med simuleringens sædskifter og låste marker.',
+      fix: { bound: 'min', areaHa: 7.5, label: 'Brug 7,5 ha' },
+    })
+    expect(cropAreaRangeWarnings(draft({ minHa: '10' }), beans)).toEqual([])
+  })
+
+  it('blocks a maximum below what is fixed, with a fix', () => {
+    expect(cropAreaRangeError(draft({ maxHa: '0.2' }), beans)).toEqual({
+      message:
+        'Mindst 0,5 ha ligger fast med simuleringens sædskifter og låste marker.',
+      fix: { bound: 'max', areaHa: 0.5, label: 'Brug 0,5 ha' },
+    })
+  })
+
+  it('warns when only one optimization can meet the limit', () => {
+    expect(cropAreaRangeError(draft({ maxHa: '2' }), beans)).toBeNull()
+    expect(cropAreaRangeWarnings(draft({ maxHa: '2' }), beans)).toEqual([
+      'Kun Optimér kan overholde maksimum – Års-optimeringen har mindst 4 ha i 2028.',
+    ])
+    const weakYears = { ...beans, maxHaByYear: [0, 30, 30, 30, 30, 30, 30, 0] }
+    expect(cropAreaRangeWarnings(draft({ minHa: '5' }), weakYears)).toEqual([
+      'Kun Optimér kan opfylde minimum – Års-optimeringen kan højst nå 0 ha i 2027, 2034.',
+    ])
+  })
+
+  it('accepts a limit both can meet, and checks nothing without a range', () => {
+    const limit = draft({ minHa: '1', maxHa: '20' })
+    expect(cropAreaRangeError(limit, beans)).toBeNull()
+    expect(cropAreaRangeWarnings(limit, beans)).toEqual([])
+    expect(cropAreaRangeError(draft({ minHa: '10' }), undefined)).toBeNull()
   })
 })

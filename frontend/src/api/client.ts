@@ -5,11 +5,13 @@ export const API_BASE = '/api/v0'
 
 export class ApiError extends Error {
   readonly status: number
+  readonly detail: unknown
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, detail?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.detail = detail
   }
 }
 
@@ -78,6 +80,15 @@ const formatErrorDetail = (detail: unknown): string => {
     if (messages.length > 0) return messages.join('\n')
   }
 
+  if (
+    detail &&
+    typeof detail === 'object' &&
+    'message' in detail &&
+    typeof detail.message === 'string'
+  ) {
+    return detail.message
+  }
+
   if (detail && typeof detail === 'object') {
     try {
       return JSON.stringify(detail)
@@ -89,16 +100,19 @@ const formatErrorDetail = (detail: unknown): string => {
   return ''
 }
 
-const getErrorMessage = async (response: Response) => {
+const readError = async (response: Response) => {
+  let detail: unknown
   try {
     const body = (await response.json()) as { detail?: unknown }
-    const message = formatErrorDetail(body.detail)
-    if (message) return message
+    detail = fromWire(body.detail)
   } catch {
     // Fall through to the generic status message.
   }
 
-  return `API-kald fejlede med status ${response.status}`
+  const message =
+    formatErrorDetail(detail) ||
+    `API-kald fejlede med status ${response.status}`
+  return new ApiError(response.status, message, detail)
 }
 
 const request = async (path: string, init: RequestInit = {}, canRetry = true): Promise<Response> => {
@@ -122,7 +136,7 @@ export const fetcher = async <T>(path: string): Promise<T> => {
   const response = await request(path)
 
   if (!response.ok) {
-    throw new ApiError(response.status, await getErrorMessage(response))
+    throw await readError(response)
   }
 
   return fromWire<T>(await response.json())
@@ -141,7 +155,7 @@ export const postJson = async <TResponse, TBody>(
   })
 
   if (!response.ok) {
-    throw new ApiError(response.status, await getErrorMessage(response))
+    throw await readError(response)
   }
 
   return fromWire<TResponse>(await response.json())
@@ -160,7 +174,7 @@ export const patchJson = async <TResponse, TBody>(
   })
 
   if (!response.ok) {
-    throw new ApiError(response.status, await getErrorMessage(response))
+    throw await readError(response)
   }
 
   return fromWire<TResponse>(await response.json())
@@ -172,6 +186,6 @@ export const deleteJson = async (path: string): Promise<void> => {
   })
 
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response))
+    throw new Error((await readError(response)).message)
   }
 }

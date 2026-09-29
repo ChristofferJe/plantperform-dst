@@ -18,6 +18,7 @@ import {
   type StartOptimizationRun,
 } from '@/api/optimization-runs'
 import type { YearlySummaryEntry } from '@/api/types'
+import { cropAreaViolationsFromDetail } from '@/lib/crop-area-limits'
 import {
   optimizationFailureMessage,
   summarizeOptimizationChanges,
@@ -131,6 +132,10 @@ export const OptimizationRunsProvider = ({
               },
               OPTIMIZATION_TIME_LIMIT_SECONDS,
             ),
+            cropAreaViolations:
+              error instanceof ApiError
+                ? cropAreaViolationsFromDetail(error.detail)
+                : [],
           })
         }
       }

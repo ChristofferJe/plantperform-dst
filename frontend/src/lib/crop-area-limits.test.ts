@@ -8,11 +8,10 @@ import {
   draftFromCropAreaLimit,
   emptyCropAreaLimitDraft,
   hectaresToPercent,
-  percentToHectares,
+  percentRangeLabel,
   sameCropAreaLimits,
   totalFieldAreaHa,
   withHectares,
-  withPercent,
   type CropAreaLimitDraft,
 } from '@/lib/crop-area-limits'
 
@@ -33,12 +32,10 @@ describe('totalFieldAreaHa', () => {
 describe('hectares and percent', () => {
   it('gives 20 ha as 25 % of 80 ha', () => {
     expect(hectaresToPercent(20, 80)).toBe(25)
-    expect(percentToHectares(25, 80)).toBe(20)
   })
 
-  it('rounds percent to one decimal and hectares to two', () => {
+  it('rounds percent to one decimal', () => {
     expect(hectaresToPercent(10, 30)).toBe(33.3)
-    expect(percentToHectares(33.3, 30.5)).toBe(10.16)
   })
 
   it('has no percent when the simulation has no area', () => {
@@ -55,12 +52,7 @@ describe('hectares and percent', () => {
     expect(next).toMatchObject({ minHa: '20', minPct: '25', maxHa: '' })
   })
 
-  it('works out the hectares when the user types a percent', () => {
-    const next = withPercent(emptyCropAreaLimitDraft(POTATOES), 'max', '50', 80)
-    expect(next).toMatchObject({ maxPct: '50', maxHa: '40', minHa: '' })
-  })
-
-  it('clears the other field when the typed one is cleared', () => {
+  it('clears the percent when the hectares are cleared', () => {
     const filled = withHectares(
       emptyCropAreaLimitDraft(POTATOES),
       'min',
@@ -89,10 +81,10 @@ describe('hectares and percent', () => {
   })
 
   it('saves the limit in hectares', () => {
-    const typed = withPercent(
+    const typed = withHectares(
       emptyCropAreaLimitDraft(POTATOES),
       'min',
-      '25',
+      '20',
       80,
     )
     expect(cropAreaLimitFromDraft(typed)).toEqual({
@@ -100,6 +92,25 @@ describe('hectares and percent', () => {
       minAreaHa: 20,
       maxAreaHa: null,
     })
+  })
+})
+
+describe('percentRangeLabel', () => {
+  it('describes the range in percent of the area', () => {
+    const both = withHectares(
+      withHectares(emptyCropAreaLimitDraft(POTATOES), 'min', '0.4', 39.29),
+      'max',
+      '15',
+      39.29,
+    )
+    expect(percentRangeLabel(both)).toBe('1–38,2 % af arealet')
+    expect(percentRangeLabel({ ...both, maxHa: '', maxPct: '' })).toBe(
+      'Mindst 1 % af arealet',
+    )
+    expect(percentRangeLabel({ ...both, minHa: '', minPct: '' })).toBe(
+      'Højst 38,2 % af arealet',
+    )
+    expect(percentRangeLabel(emptyCropAreaLimitDraft(POTATOES))).toBeNull()
   })
 })
 

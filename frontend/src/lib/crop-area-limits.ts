@@ -10,8 +10,9 @@ export type CropAreaLimitDraft = {
   maxPct: string
 }
 
-const HECTARE_DECIMALS = 2
 const PERCENT_DECIMALS = 1
+
+const areaFormat = new Intl.NumberFormat('da-DK', { maximumFractionDigits: 1 })
 
 const round = (value: number, decimals: number) => {
   const factor = 10 ** decimals
@@ -31,20 +32,11 @@ export const totalFieldAreaHa = (fields: FieldRecord[]) =>
 export const hectaresToPercent = (areaHa: number, totalAreaHa: number) =>
   totalAreaHa > 0 ? round((areaHa / totalAreaHa) * 100, PERCENT_DECIMALS) : null
 
-export const percentToHectares = (percent: number, totalAreaHa: number) =>
-  round((percent / 100) * totalAreaHa, HECTARE_DECIMALS)
-
 const hectaresInputToPercentInput = (value: string, totalAreaHa: number) => {
   const areaHa = parseInput(value)
   if (areaHa === null || Number.isNaN(areaHa)) return ''
   const percent = hectaresToPercent(areaHa, totalAreaHa)
   return percent === null ? '' : String(percent)
-}
-
-const percentInputToHectaresInput = (value: string, totalAreaHa: number) => {
-  const percent = parseInput(value)
-  if (percent === null || Number.isNaN(percent)) return ''
-  return String(percentToHectares(percent, totalAreaHa))
 }
 
 const hectaresKey = (bound: AreaBound) => (bound === 'min' ? 'minHa' : 'maxHa')
@@ -59,17 +51,6 @@ export const withHectares = (
   ...draft,
   [hectaresKey(bound)]: value,
   [percentKey(bound)]: hectaresInputToPercentInput(value, totalAreaHa),
-})
-
-export const withPercent = (
-  draft: CropAreaLimitDraft,
-  bound: AreaBound,
-  value: string,
-  totalAreaHa: number,
-): CropAreaLimitDraft => ({
-  ...draft,
-  [percentKey(bound)]: value,
-  [hectaresKey(bound)]: percentInputToHectaresInput(value, totalAreaHa),
 })
 
 const areaToInput = (value: number | null) =>
@@ -135,6 +116,25 @@ export const sameCropAreaLimits = (
       limit.minAreaHa === right[index].minAreaHa &&
       limit.maxAreaHa === right[index].maxAreaHa,
   )
+
+export const percentRangeLabel = (draft: CropAreaLimitDraft): string | null => {
+  const min = parseInput(draft.minPct)
+  const max = parseInput(draft.maxPct)
+  const format = (value: number) => areaFormat.format(value)
+  if (
+    min !== null &&
+    max !== null &&
+    !Number.isNaN(min) &&
+    !Number.isNaN(max)
+  ) {
+    return `${format(min)}–${format(max)} % af arealet`
+  }
+  if (min !== null && !Number.isNaN(min))
+    return `Mindst ${format(min)} % af arealet`
+  if (max !== null && !Number.isNaN(max))
+    return `Højst ${format(max)} % af arealet`
+  return null
+}
 
 export type CropAreaViolation = {
   cropCode: number

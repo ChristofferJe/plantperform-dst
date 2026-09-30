@@ -507,7 +507,7 @@ const LeachingDetailSection = ({
   const lNuar = num(detail.L_nuar)
   const { nLoadPerHa, nLoadField } = calculateNLoad(lNuar, retention, areaHa)
 
-  const fmajsApplied = Boolean(detail.Fmajs_anvendt)
+  const fmajsApplied = Boolean(detail.fmajsApplied)
   const eeaRed = num(detail.EEA) * num(detail.Fdato_factor)
   const measureSum = eeaRed + num(detail.EMA) + num(detail.ETS)
   const factor1 = 1 - measureSum
@@ -739,17 +739,22 @@ const LeachingDetailSection = ({
 
       {fmajsApplied ? (
         <div className="space-y-1.5">
-          <SectionHeading>
-            Majs efter kløvergræs (Fmajs)
-          </SectionHeading>
+          <SectionHeading>Majs efter kløvergræs (Fmajs)</SectionHeading>
           <p className="text-xs text-muted-foreground">
             Tabel-korrektionsfaktor baseret på tilført mineralsk N (forår,
             efterår og udegående dyr), trin på 10 kg N/ha.
           </p>
           <DetailTable
             rows={[
-              { label: 'Mineralsk N i alt', value: `${fmt(num(detail.Fmajs_mineralsk_n), 1)} kg N/ha` },
-              { label: 'Korrektionsfaktor', value: fmt(num(detail.Fmajs_korrektionsfaktor), 3), strong: true },
+              {
+                label: 'Mineralsk N i alt',
+                value: `${fmt(num(detail.fmajsMineralN), 1)} kg N/ha`,
+              },
+              {
+                label: 'Korrektionsfaktor',
+                value: fmt(num(detail.fmajsCorrectionFactor), 3),
+                strong: true,
+              },
               { label: 'L (før korrektion)', value: `${fmt(lRaw, 3)} kg N/ha` },
               {
                 label: 'L (efter korrektion)',
@@ -759,7 +764,7 @@ const LeachingDetailSection = ({
             ]}
           />
           <Callout>
-            L = {fmt(lRaw, 3)} × {fmt(num(detail.Fmajs_korrektionsfaktor), 3)} ={' '}
+            L = {fmt(lRaw, 3)} × {fmt(num(detail.fmajsCorrectionFactor), 3)} ={' '}
             <strong>{fmt(l, 3)} kg N/ha</strong> (Fmajs anvendt)
           </Callout>
         </div>

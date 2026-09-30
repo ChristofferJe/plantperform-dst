@@ -1,14 +1,13 @@
 import { useState, type FormEvent } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { Mail, MailCheck } from 'lucide-react'
 
 import { postJson } from '@/api/client'
 import { AuthIcon, AuthLayout } from '@/components/onboarding/AuthLayout'
 import { AuthNotice } from '@/components/onboarding/AuthNotice'
+import { BackToLogin } from '@/components/onboarding/BackToLogin'
+import { EmailField } from '@/components/onboarding/EmailField'
 import { Button } from '@/components/ui/button'
-import { FieldError } from '@/components/ui/field-error'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { validateEmail } from '@/lib/auth-form'
 
 export const ForgotPasswordPage = () => {
@@ -19,7 +18,7 @@ export const ForgotPasswordPage = () => {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [sent, setSent] = useState(false)
+  const [sentTo, setSentTo] = useState<string | null>(null)
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -31,13 +30,14 @@ export const ForgotPasswordPage = () => {
       document.getElementById('reset-email')?.focus()
       return
     }
+    const address = email.trim().toLowerCase()
     setIsSubmitting(true)
     try {
       await postJson<{ message: string }, { email: string }>(
         '/auth/password/forgot',
-        { email: email.trim().toLowerCase() },
+        { email: address },
       )
-      setSent(true)
+      setSentTo(address)
     } catch {
       setError('Kunne ikke sende mailen lige nu. Prøv igen om lidt.')
     } finally {
@@ -47,23 +47,22 @@ export const ForgotPasswordPage = () => {
 
   return (
     <AuthLayout
-      icon={<AuthIcon icon={sent ? MailCheck : Mail} />}
-      title={sent ? 'Tjek din e-mail' : 'Glemt adgangskode?'}
+      icon={<AuthIcon icon={sentTo ? MailCheck : Mail} />}
+      title={sentTo ? 'Tjek din e-mail' : 'Glemt adgangskode?'}
       description={
-        sent
-          ? 'Hvis der findes en konto med denne e-mailadresse, har vi sendt et link til at vælge en ny adgangskode.'
-          : 'Skriv den e-mail, du oprettede kontoen med, så sender vi et link til en ny adgangskode.'
+        sentTo ? (
+          <>
+            Hvis der findes en konto med{' '}
+            <strong className="font-medium text-foreground">{sentTo}</strong>,
+            har vi sendt et link til at vælge en ny adgangskode.
+          </>
+        ) : (
+          'Skriv den e-mail, du oprettede kontoen med, så sender vi et link til en ny adgangskode.'
+        )
       }
-      footer={
-        <Link
-          className="font-medium text-foreground underline underline-offset-4"
-          to="/login"
-        >
-          Tilbage til login
-        </Link>
-      }
+      footer={<BackToLogin />}
     >
-      {sent ? (
+      {sentTo ? (
         <div className="space-y-6" role="status">
           <p className="text-sm text-muted-foreground">
             Linket virker i 1 time og kan kun bruges én gang. Kig i spam, hvis
@@ -74,34 +73,26 @@ export const ForgotPasswordPage = () => {
             type="button"
             variant="outline"
             className="w-full"
-            onClick={() => setSent(false)}
+            onClick={() => setSentTo(null)}
           >
             Send et nyt link
           </Button>
         </div>
       ) : (
         <form className="space-y-6" noValidate onSubmit={onSubmit}>
-          <div className="space-y-2">
-            <Label htmlFor="reset-email">E-mail</Label>
-            <Input
-              id="reset-email"
-              type="email"
-              autoComplete="email"
-              autoFocus
-              value={email}
-              aria-invalid={Boolean(emailError) || undefined}
-              aria-describedby={emailError ? 'reset-email-error' : undefined}
-              className="h-11 aria-invalid:border-red-600 aria-invalid:ring-1 aria-invalid:ring-red-600"
-              onChange={(event) => {
-                setEmail(event.target.value)
-                if (emailError) setEmailError(validateEmail(event.target.value))
-              }}
-              onBlur={() => {
-                if (email.trim()) setEmailError(validateEmail(email))
-              }}
-            />
-            <FieldError id="reset-email-error" message={emailError} />
-          </div>
+          <EmailField
+            id="reset-email"
+            value={email}
+            error={emailError}
+            autoFocus
+            onChange={(value) => {
+              setEmail(value)
+              if (emailError) setEmailError(validateEmail(value))
+            }}
+            onBlur={() => {
+              if (email.trim()) setEmailError(validateEmail(email))
+            }}
+          />
           {error ? <AuthNotice tone="error">{error}</AuthNotice> : null}
           <Button size="lg" className="w-full" loading={isSubmitting}>
             {isSubmitting ? 'Sender...' : 'Send link til ny adgangskode'}

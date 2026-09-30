@@ -6,12 +6,14 @@ import { setAccessToken } from '@/api/auth'
 import { ApiError, postJson } from '@/api/client'
 import { AuthIcon, AuthLayout } from '@/components/onboarding/AuthLayout'
 import { AuthNotice } from '@/components/onboarding/AuthNotice'
+import { BackToLogin } from '@/components/onboarding/BackToLogin'
 import { PasswordInput } from '@/components/onboarding/PasswordInput'
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import { Label } from '@/components/ui/label'
 import {
   PASSWORD_MIN_LENGTH,
+  isWellFormedResetToken,
   validatePassword,
   validatePasswordConfirmation,
 } from '@/lib/auth-form'
@@ -25,7 +27,7 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
   )
   const [error, setError] = useState<string | null>(null)
   const [invalidToken, setInvalidToken] = useState(
-    token.length < 20 || token.length > 256,
+    !isWellFormedResetToken(token),
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [completed, setCompleted] = useState(false)
@@ -89,6 +91,7 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
         icon={<AuthIcon icon={CircleAlert} tone="danger" />}
         title="Linket virker ikke længere"
         description="Linket mangler, er udløbet eller er allerede brugt. Bed om et nyt link for at ændre din adgangskode."
+        footer={<BackToLogin />}
       >
         <Button asChild size="lg" className="w-full">
           <Link to="/forgot-password">Send et nyt link</Link>
@@ -102,14 +105,7 @@ const ResetPasswordForm = ({ token }: { token: string }) => {
       icon={<AuthIcon icon={KeyRound} />}
       title="Vælg en ny adgangskode"
       description={`Din nye adgangskode skal være mindst ${PASSWORD_MIN_LENGTH} tegn.`}
-      footer={
-        <Link
-          className="font-medium text-foreground underline underline-offset-4"
-          to="/login"
-        >
-          Tilbage til login
-        </Link>
-      }
+      footer={<BackToLogin />}
     >
       <form className="space-y-6" noValidate onSubmit={onSubmit}>
         <div className="space-y-2">

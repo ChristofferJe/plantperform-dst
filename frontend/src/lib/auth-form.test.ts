@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  isWellFormedResetToken,
   loginFailure,
   validatePassword,
   validatePasswordConfirmation,
@@ -41,5 +42,13 @@ describe('password reset validation', () => {
     expect(validatePasswordConfirmation('password', 'different')).not.toBeNull()
     expect(validatePasswordConfirmation('password', 'password ')).not.toBeNull()
     expect(validatePasswordConfirmation('password', 'password')).toBeNull()
+  })
+
+  it('accepts only reset tokens within the API length limits', () => {
+    expect(isWellFormedResetToken('')).toBe(false)
+    expect(isWellFormedResetToken('x'.repeat(19))).toBe(false)
+    expect(isWellFormedResetToken('x'.repeat(20))).toBe(true)
+    expect(isWellFormedResetToken('x'.repeat(256))).toBe(true)
+    expect(isWellFormedResetToken('x'.repeat(257))).toBe(false)
   })
 })

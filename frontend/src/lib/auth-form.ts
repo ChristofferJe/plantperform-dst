@@ -1,4 +1,8 @@
 export const PASSWORD_MIN_LENGTH = 6
+const PASSWORD_MAX_LENGTH = 1024
+
+const RESET_TOKEN_MIN_LENGTH = 20
+const RESET_TOKEN_MAX_LENGTH = 256
 
 const EMAIL_MAX_LENGTH = 320
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -47,8 +51,8 @@ export const validatePassword = (
   if (value.length < PASSWORD_MIN_LENGTH) {
     return `Adgangskoden skal være mindst ${PASSWORD_MIN_LENGTH} tegn.`
   }
-  if (value.length > 1024) {
-    return 'Adgangskoden må højst være 1024 tegn.'
+  if (value.length > PASSWORD_MAX_LENGTH) {
+    return `Adgangskoden må højst være ${PASSWORD_MAX_LENGTH} tegn.`
   }
   return null
 }
@@ -61,3 +65,7 @@ export const validatePasswordConfirmation = (
   if (password !== confirmation) return 'Adgangskoderne er ikke ens.'
   return null
 }
+
+export const isWellFormedResetToken = (token: string): boolean =>
+  token.length >= RESET_TOKEN_MIN_LENGTH &&
+  token.length <= RESET_TOKEN_MAX_LENGTH

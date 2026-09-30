@@ -324,7 +324,7 @@ export type RotationPositionOverride = {
   cropCode: number
   undersownCropCode?: number | null
   undersownCropName?: string | null
-  udlaegSet?: boolean
+  undersownCropSet?: boolean
 }
 
 export type RotationCandidateEvaluation = {

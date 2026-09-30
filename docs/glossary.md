@@ -116,7 +116,7 @@ field" column is the name on the wire.
 | JB-nummer | `soilTypeNumber` | `jbnr` | JB kept in names like `JB_COLORS` |
 | afstrømningskategori | `runoffCategory`, `runoffCategoryUnknown` | `afstromningskategori`, `afstromningskategori_ukendt` | |
 | efterafgrødens N-fiksering | `catchCropNFixation`, `catchCropNFixationBonus` | `efterafgroede_nfiks`, `efterafgroede_nfiks_bonus` | |
-| M11-korrektion | `m11CorrectionApplied`, `m11CorrectionFactor` | `M11_korrektion_anvendt`, `M11_korrektionsfaktor` | |
+| Fmajs-korrektion | `fmajsApplied`, `fmajsCorrectionFactor`, `fmajsMineralN` | `Fmajs_anvendt`, `Fmajs_korrektionsfaktor`, `Fmajs_mineralsk_n` | Maize after clover grass |
 | simulering | `Simulation`, simulation | | |
 | scenarie | scenario | | |
 | beregning | calculation | | |

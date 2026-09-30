@@ -8,6 +8,7 @@ from app.auth import (
     REFRESH_COOKIE_NAME,
     AuthenticatedUser,
     InvalidCredentialsError,
+    InvalidPasswordResetTokenError,
     InvalidRefreshTokenError,
     InvalidVerificationTokenError,
     UnverifiedAccountError,
@@ -18,8 +19,10 @@ from app.auth import (
     refresh_cookie_options,
     refresh_user,
     register_user,
+    request_password_reset,
     require_same_origin,
     resend_verification,
+    reset_password,
     verify_email,
 )
 from app.domain.base import CamelModel
@@ -55,6 +58,10 @@ class EmailRequest(CamelModel):
 
 class VerificationRequest(CamelModel):
     token: str = Field(min_length=20, max_length=256)
+
+
+class PasswordResetRequest(VerificationRequest):
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH, max_length=1024)
 
 
 class AuthMessage(CamelModel):
@@ -129,6 +136,42 @@ def verify(request: VerificationRequest) -> AuthMessage:
             detail="Invalid or expired verification token",
         ) from error
     return AuthMessage(message="Email verified. You can now log in.")
+
+
+@router.post(
+    "/password/forgot",
+    response_model=AuthMessage,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def forgot_password(
+    request: EmailRequest,
+    _: None = Depends(require_same_origin),
+) -> AuthMessage:
+    try:
+        request_password_reset(request.email)
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password reset email could not be sent",
+        ) from error
+    return AuthMessage(message="If the address has an account, a password reset email was sent.")
+
+
+@router.post("/password/reset", response_model=AuthMessage)
+def complete_password_reset(
+    request: PasswordResetRequest,
+    response: Response,
+    _: None = Depends(require_same_origin),
+) -> AuthMessage:
+    try:
+        reset_password(request.token, request.password)
+    except InvalidPasswordResetTokenError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        ) from error
+    _clear_refresh_cookie(response)
+    return AuthMessage(message="Password reset. You can now log in with your new password.")
 
 
 @router.post("/login", response_model=TokenResponse)

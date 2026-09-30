@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { loginFailure } from '@/lib/auth-form'
+import {
+  loginFailure,
+  validatePassword,
+  validatePasswordConfirmation,
+} from '@/lib/auth-form'
 
 describe('loginFailure', () => {
   it('asks for verification when the email is not verified', () => {
@@ -20,5 +24,22 @@ describe('loginFailure', () => {
       'unavailable',
     )
     expect(loginFailure(null, 'Failed to fetch')).toBe('unavailable')
+  })
+})
+
+describe('password reset validation', () => {
+  it('requires a new password within the API length limits', () => {
+    expect(validatePassword('', 'reset')).not.toBeNull()
+    expect(validatePassword('short', 'reset')).not.toBeNull()
+    expect(validatePassword('123456', 'reset')).toBeNull()
+    expect(validatePassword('x'.repeat(1024), 'reset')).toBeNull()
+    expect(validatePassword('x'.repeat(1025), 'reset')).not.toBeNull()
+  })
+
+  it('requires an exact confirmation without trimming passwords', () => {
+    expect(validatePasswordConfirmation('password', '')).not.toBeNull()
+    expect(validatePasswordConfirmation('password', 'different')).not.toBeNull()
+    expect(validatePasswordConfirmation('password', 'password ')).not.toBeNull()
+    expect(validatePasswordConfirmation('password', 'password')).toBeNull()
   })
 })

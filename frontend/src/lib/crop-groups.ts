@@ -7,6 +7,7 @@ export type CropGroup =
   | 'potato'
   | 'beet'
   | 'seedGrass'
+  | 'helsaed'
   | 'grass'
   | 'fallow'
   | 'other'
@@ -57,6 +58,11 @@ export const CROP_GROUPS: readonly CropGroupDefinition[] = [
     id: 'seedGrass',
     label: 'Frøgræs',
     color: '#a3cc45',
+  },
+  {
+    id: 'helsaed',
+    label: 'Helsæd',
+    color: '#b8973d',
   },
   {
     id: 'grass',
@@ -110,6 +116,14 @@ const CODE_RANGES: readonly CodeRange[] = [
   [125, 125, 'beet'],
   [149, 157, 'potato'],
   [160, 162, 'beet'],
+  [210, 218, 'helsaed'],
+  [220, 225, 'helsaed'],
+  [230, 230, 'helsaed'],
+  [234, 235, 'helsaed'],
+  [254, 254, 'fallow'],
+  [271, 271, 'fallow'],
+  [280, 283, 'beet'],
+  [988, 990, 'fallow'],
   [170, 299, 'grass'],
   [300, 329, 'fallow'],
 ]

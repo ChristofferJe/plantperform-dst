@@ -30,6 +30,17 @@ export const WheatOutline = (props: CropIconProps) => (
   <CropIcon viewBox="0 0 24 24" paths={WHEAT_OUTLINE} {...props} />
 )
 
+const ROUND_BALE: CropIconPath[] = [
+  {
+    d: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18Z M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6Z M5.354 4.506L19.494 18.646L18.646 19.494L4.506 5.354Z M4.506 18.646L18.646 4.506L19.494 5.354L5.354 19.494Z',
+    fillRule: 'evenodd',
+  },
+]
+
+export const RoundBale = (props: CropIconProps) => (
+  <CropIcon viewBox="0 0 24 24" paths={ROUND_BALE} {...props} />
+)
+
 const SHEAF_OF_RICE: CropIconPath[] = [
   {
     d: 'M21.606 17.794s1.719-1.396 1.282-3.142c-.437-1.744-2.918-3.395-2.918-3.395s-1.44 2.512-1.003 4.257c.436 1.745 2.639 2.28 2.639 2.28',

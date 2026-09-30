@@ -72,8 +72,9 @@ const RESPONSE_ONLY_NAMES: Record<string, string> = {
   afstromningskategori_ukendt: 'runoffCategoryUnknown',
   efterafgroede_nfiks: 'catchCropNFixation',
   efterafgroede_nfiks_bonus: 'catchCropNFixationBonus',
-  M11_korrektion_anvendt: 'm11CorrectionApplied',
-  M11_korrektionsfaktor: 'm11CorrectionFactor',
+  Fmajs_anvendt: 'fmajsApplied',
+  Fmajs_korrektionsfaktor: 'fmajsCorrectionFactor',
+  Fmajs_mineralsk_n: 'fmajsMineralN',
 }
 
 const RESPONSE_NAMES: Record<string, string> = {

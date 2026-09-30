@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   CircleAlert,
   CircleCheck,
@@ -16,11 +11,10 @@ import {
 import { postJson } from '@/api/client'
 import { AuthIcon, AuthLayout } from '@/components/onboarding/AuthLayout'
 import { AuthNotice } from '@/components/onboarding/AuthNotice'
-import { FieldError } from '@/components/ui/field-error'
+import { BackToLogin } from '@/components/onboarding/BackToLogin'
+import { EmailField } from '@/components/onboarding/EmailField'
 import { LoginForm } from '@/components/onboarding/LoginForm'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { validateEmail } from '@/lib/auth-form'
 import {
   clearLastRegisteredEmail,
@@ -35,17 +29,6 @@ const resendVerification = (email: string) =>
     '/auth/verification/resend',
     { email: email.trim().toLowerCase() },
   )
-
-const BackToLogin = () => (
-  <p>
-    <Link
-      className="font-medium text-foreground underline underline-offset-4"
-      to="/login"
-    >
-      Tilbage til login
-    </Link>
-  </p>
-)
 
 type ResendNoticeProps = {
   state: ResendState
@@ -113,21 +96,13 @@ export const VerifyEmailPage = () => {
 
   const resendForm = (
     <form className="space-y-3" noValidate onSubmit={resend}>
-      <div className="space-y-2">
-        <Label htmlFor="verification-email">E-mail</Label>
-        <Input
-          id="verification-email"
-          type="email"
-          autoComplete="email"
-          aria-invalid={emailError ? true : undefined}
-          aria-describedby={emailError ? 'verification-email-error' : undefined}
-          className="h-11 aria-invalid:border-red-600 aria-invalid:ring-1 aria-invalid:ring-red-600"
-          value={email}
-          onChange={(event) => changeEmail(event.target.value)}
-          onBlur={blurEmail}
-        />
-        <FieldError id="verification-email-error" message={emailError} />
-      </div>
+      <EmailField
+        id="verification-email"
+        value={email}
+        error={emailError}
+        onChange={changeEmail}
+        onBlur={blurEmail}
+      />
       <Button
         size="lg"
         variant="outline"

@@ -14,6 +14,7 @@ import {
   emptyCropAreaLimitDraft,
   fieldAreaSums,
   hectaresToPercent,
+  isEmptyCropAreaLimit,
   possibleCropArea,
   percentRangeLabel,
   possibleCropAreaLabel,
@@ -51,50 +52,34 @@ describe('hectares and percent', () => {
   })
 
   it('works out the percent when the user types hectares', () => {
-    const next = withHectares(
-      emptyCropAreaLimitDraft(POTATOES),
-      'min',
-      '20',
-      80,
-    )
-    expect(next).toMatchObject({ minHa: '20', minPct: '25', maxHa: '' })
+    const next = withHectares(emptyCropAreaLimitDraft(POTATOES), 'min', '20')
+    expect(next).toEqual({ cropCode: POTATOES, minHa: '20', maxHa: '' })
+    expect(percentRangeLabel(next, 80)).toBe('Mindst 25 % af arealet')
   })
 
   it('clears the percent when the hectares are cleared', () => {
-    const filled = withHectares(
-      emptyCropAreaLimitDraft(POTATOES),
-      'min',
-      '20',
-      80,
-    )
-    expect(withHectares(filled, 'min', '', 80)).toMatchObject({
-      minHa: '',
-      minPct: '',
-    })
+    const filled = withHectares(emptyCropAreaLimitDraft(POTATOES), 'min', '20')
+    expect(percentRangeLabel(withHectares(filled, 'min', ''), 80)).toBeNull()
   })
 
-  it('fills the percentages of a saved limit from its hectares', () => {
-    expect(
-      draftFromCropAreaLimit(
-        { cropCode: POTATOES, minAreaHa: 20, maxAreaHa: null },
-        80,
-      ),
-    ).toEqual({
+  it('works out the percent of a saved limit from its hectares', () => {
+    const saved = draftFromCropAreaLimit({
       cropCode: POTATOES,
-      minHa: '20',
-      maxHa: '',
-      minPct: '25',
-      maxPct: '',
+      minAreaHa: 20,
+      maxAreaHa: null,
     })
+    expect(saved).toEqual({ cropCode: POTATOES, minHa: '20', maxHa: '' })
+    expect(percentRangeLabel(saved, 80)).toBe('Mindst 25 % af arealet')
+  })
+
+  it('follows the total area when it changes', () => {
+    const typed = withHectares(emptyCropAreaLimitDraft(POTATOES), 'min', '20')
+    expect(percentRangeLabel(typed, 40)).toBe('Mindst 50 % af arealet')
+    expect(percentRangeLabel(typed, 0)).toBeNull()
   })
 
   it('saves the limit in hectares', () => {
-    const typed = withHectares(
-      emptyCropAreaLimitDraft(POTATOES),
-      'min',
-      '20',
-      80,
-    )
+    const typed = withHectares(emptyCropAreaLimitDraft(POTATOES), 'min', '20')
     expect(cropAreaLimitFromDraft(typed)).toEqual({
       cropCode: POTATOES,
       minAreaHa: 20,
@@ -105,20 +90,29 @@ describe('hectares and percent', () => {
 
 describe('percentRangeLabel', () => {
   it('describes the range in percent of the area', () => {
-    const both = withHectares(
-      withHectares(emptyCropAreaLimitDraft(POTATOES), 'min', '0.4', 39.29),
-      'max',
-      '15',
-      39.29,
-    )
-    expect(percentRangeLabel(both)).toBe('1–38,2 % af arealet')
-    expect(percentRangeLabel({ ...both, maxHa: '', maxPct: '' })).toBe(
+    const both = draft({ minHa: '0.4', maxHa: '15' })
+    expect(percentRangeLabel(both, 39.29)).toBe('1–38,2 % af arealet')
+    expect(percentRangeLabel({ ...both, maxHa: '' }, 39.29)).toBe(
       'Mindst 1 % af arealet',
     )
-    expect(percentRangeLabel({ ...both, minHa: '', minPct: '' })).toBe(
+    expect(percentRangeLabel({ ...both, minHa: '' }, 39.29)).toBe(
       'Højst 38,2 % af arealet',
     )
-    expect(percentRangeLabel(emptyCropAreaLimitDraft(POTATOES))).toBeNull()
+    expect(
+      percentRangeLabel(emptyCropAreaLimitDraft(POTATOES), 39.29),
+    ).toBeNull()
+  })
+})
+
+describe('isEmptyCropAreaLimit', () => {
+  it('sees an added crop without numbers as empty', () => {
+    expect(isEmptyCropAreaLimit(emptyCropAreaLimitDraft(POTATOES))).toBe(true)
+    expect(isEmptyCropAreaLimit(draft({ minHa: ' ' }))).toBe(true)
+  })
+
+  it('sees one typed bound as started', () => {
+    expect(isEmptyCropAreaLimit(draft({ maxHa: '12' }))).toBe(false)
+    expect(isEmptyCropAreaLimit(draft({ minHa: 'x' }))).toBe(false)
   })
 })
 
@@ -301,11 +295,11 @@ describe('possible crop area', () => {
   it('warns when only one optimization can meet the limit', () => {
     expect(cropAreaRangeError(draft({ maxHa: '2' }), beans)).toBeNull()
     expect(cropAreaRangeWarnings(draft({ maxHa: '2' }), beans)).toEqual([
-      'Kun Optimér kan overholde maksimum – Års-optimeringen har mindst 4 ha i 2028.',
+      'Kun Optimér kan overholde maksimum - Års-optimeringen har mindst 4 ha i 2028.',
     ])
     const weakYears = { ...beans, maxHaByYear: [0, 30, 30, 30, 30, 30, 30, 0] }
     expect(cropAreaRangeWarnings(draft({ minHa: '5' }), weakYears)).toEqual([
-      'Kun Optimér kan opfylde minimum – Års-optimeringen kan højst nå 0 ha i 2027, 2034.',
+      'Kun Optimér kan opfylde minimum - Års-optimeringen kan højst nå 0 ha i 2027, 2034.',
     ])
   })
 

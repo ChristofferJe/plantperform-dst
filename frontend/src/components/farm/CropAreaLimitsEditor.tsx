@@ -4,7 +4,7 @@ import { Fragment, useMemo, useState } from 'react'
 import type { CropAreaRange, CropCodeOption, FieldRecord } from '@/api/types'
 import { CropGroupIcon, CropGroupTile } from '@/components/farm/CropGroupTile'
 import { SearchableCropPickerList } from '@/components/farm/SearchableCropPickerList'
-import { AppTooltip } from '@/components/ui/app-tooltip'
+import { AppTooltip, TruncatedTooltip } from '@/components/ui/app-tooltip'
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import {
@@ -23,6 +23,7 @@ import {
   emptyCropAreaLimitDraft,
   fieldAreaSums,
   formatAreaHa,
+  isEmptyCropAreaLimit,
   possibleCropArea,
   percentRangeLabel,
   possibleCropAreaLabel,
@@ -51,6 +52,7 @@ type AreaRangeInputProps = {
   percentLabel: string | null
   describedBy?: string
   onChange: (bound: AreaBound, value: string) => void
+  onLeave: () => void
 }
 
 const AreaRangeInput = ({
@@ -61,12 +63,16 @@ const AreaRangeInput = ({
   percentLabel,
   describedBy,
   onChange,
+  onLeave,
 }: AreaRangeInputProps) => (
   <div>
     <div
       role="group"
       aria-label={`Areal for ${cropName} i hektar`}
       className="flex h-8 items-center rounded-md border bg-background pr-2 focus-within:ring-2 focus-within:ring-ring"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) onLeave()
+      }}
     >
       {(['min', 'max'] as const).map((bound) => (
         <Fragment key={bound}>
@@ -104,6 +110,7 @@ type CropAreaLimitsEditorProps = {
   ranges: CropAreaRange[]
   totalAreaHa: number
   violations: CropAreaViolation[]
+  showErrors: boolean
   onChange: (drafts: CropAreaLimitDraft[]) => void
 }
 
@@ -114,9 +121,13 @@ export const CropAreaLimitsEditor = ({
   ranges,
   totalAreaHa,
   violations,
+  showErrors,
   onChange,
 }: CropAreaLimitsEditorProps) => {
   const [isPicking, setIsPicking] = useState(false)
+  const [touchedCodes, setTouchedCodes] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  )
 
   const nameByCode = useMemo(
     () => new Map(cropCodes.map((crop) => [crop.code, crop.name])),
@@ -158,8 +169,18 @@ export const CropAreaLimitsEditor = ({
   const replaceDraft = (index: number, next: CropAreaLimitDraft) =>
     onChange(drafts.map((current, i) => (i === index ? next : current)))
 
-  const removeDraft = (index: number) =>
+  const markTouched = (cropCode: number, touched: boolean) =>
+    setTouchedCodes((current) => {
+      const next = new Set(current)
+      if (touched) next.add(cropCode)
+      else next.delete(cropCode)
+      return next
+    })
+
+  const removeDraft = (index: number) => {
+    markTouched(drafts[index].cropCode, false)
     onChange(drafts.filter((_, i) => i !== index))
+  }
 
   return (
     <section className="space-y-3" aria-labelledby="rules-crop-area-heading">
@@ -196,10 +217,8 @@ export const CropAreaLimitsEditor = ({
       <p className="text-xs text-muted-foreground">
         Hvor meget der mindst og højst skal dyrkes af en afgrøde. Procent er af
         simuleringens samlede areal
-        {totalAreaHa > 0
-          ? ` på ${totalAreaHa.toLocaleString('da-DK', { maximumFractionDigits: 2 })} ha`
-          : ''}
-        . Marker deles ikke, så giv hellere kravet et spænd end et præcist tal.
+        {totalAreaHa > 0 ? ` på ${formatAreaHa(totalAreaHa)} ha` : ''}. Marker
+        deles ikke, så giv hellere kravet et spænd end et præcist tal.
       </p>
 
       {drafts.length === 0 ? (
@@ -212,7 +231,12 @@ export const CropAreaLimitsEditor = ({
             const idPrefix = `rules-crop-area-${draft.cropCode}`
             const name =
               nameByCode.get(draft.cropCode) ?? `Afgrødekode ${draft.cropCode}`
-            const error = cropAreaLimitError(draft)
+            const error =
+              showErrors ||
+              touchedCodes.has(draft.cropCode) ||
+              !isEmptyCropAreaLimit(draft)
+                ? cropAreaLimitError(draft)
+                : null
             const range = rangeByCode.get(draft.cropCode)
             const wholeFieldWarning = cropAreaLimitWarning(
               draft,
@@ -260,9 +284,12 @@ export const CropAreaLimitsEditor = ({
                 <div className="flex min-w-0 flex-1 flex-wrap items-start gap-x-4 gap-y-1 px-3 py-2">
                   <div className="min-w-0 flex-1 basis-40">
                     <div className="flex h-8 min-w-0 items-center gap-2">
-                      <span className="truncate text-sm font-medium">
+                      <TruncatedTooltip
+                        content={name}
+                        className="truncate text-sm font-medium"
+                      >
                         {name}
-                      </span>
+                      </TruncatedTooltip>
                       <span className="shrink-0 text-xs text-muted-foreground">
                         · {draft.cropCode}
                       </span>
@@ -282,16 +309,12 @@ export const CropAreaLimitsEditor = ({
                       cropName={name}
                       minHa={draft.minHa}
                       maxHa={draft.maxHa}
-                      percentLabel={
-                        totalAreaHa > 0 ? percentRangeLabel(draft) : null
-                      }
+                      percentLabel={percentRangeLabel(draft, totalAreaHa)}
                       describedBy={describedBy}
                       onChange={(bound, value) =>
-                        replaceDraft(
-                          index,
-                          withHectares(draft, bound, value, totalAreaHa),
-                        )
+                        replaceDraft(index, withHectares(draft, bound, value))
                       }
+                      onLeave={() => markTouched(draft.cropCode, true)}
                     />
                   </div>
                   {error || rangeError || warning || violation ? (
@@ -316,7 +339,6 @@ export const CropAreaLimitsEditor = ({
                                   draft,
                                   rangeError.fix.bound,
                                   String(rangeError.fix.areaHa),
-                                  totalAreaHa,
                                 ),
                               )
                             }

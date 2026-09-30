@@ -107,11 +107,8 @@ export const SimulationRulesPanel = ({
   const { data: cropAreaRanges = [] } = useCropAreaRanges(farmId, simulation.id)
   const [cropAreaLimitDrafts, setCropAreaLimitDrafts] = useState<
     CropAreaLimitDraft[]
-  >(() =>
-    simulation.constraints.cropAreaLimits.map((limit) =>
-      draftFromCropAreaLimit(limit, totalAreaHa),
-    ),
-  )
+  >(() => simulation.constraints.cropAreaLimits.map(draftFromCropAreaLimit))
+  const [showCropAreaErrors, setShowCropAreaErrors] = useState(false)
   const run = useOptimizationRun(simulation.id)
   const cropAreaViolations =
     run?.status === 'failed' ? run.cropAreaViolations : []
@@ -172,10 +169,16 @@ export const SimulationRulesPanel = ({
 
   const editCropAreaLimits = (drafts: CropAreaLimitDraft[]) => {
     setIsSaved(false)
+    setSaveError(null)
     setCropAreaLimitDrafts(drafts)
   }
 
   const saveConstraints = async () => {
+    if (hasCropAreaLimitErrors) {
+      setShowCropAreaErrors(true)
+      setSaveError('Ret kravene under Afgrøder, før du gemmer.')
+      return
+    }
     setIsSaving(true)
     try {
       const updated = await updateSimulationConstraints(farmId, simulation.id, {
@@ -203,10 +206,9 @@ export const SimulationRulesPanel = ({
         ),
       )
       setCropAreaLimitDrafts(
-        updated.constraints.cropAreaLimits.map((limit) =>
-          draftFromCropAreaLimit(limit, totalAreaHa),
-        ),
+        updated.constraints.cropAreaLimits.map(draftFromCropAreaLimit),
       )
+      setShowCropAreaErrors(false)
       setSaveError(null)
       setIsSaved(true)
       markStale(simulation.id)
@@ -319,6 +321,7 @@ export const SimulationRulesPanel = ({
             ranges={cropAreaRanges}
             totalAreaHa={totalAreaHa}
             violations={cropAreaViolations}
+            showErrors={showCropAreaErrors}
             onChange={editCropAreaLimits}
           />
         </div>
@@ -327,7 +330,7 @@ export const SimulationRulesPanel = ({
           <Button
             size="sm"
             onClick={() => void saveConstraints()}
-            disabled={!isDirty || hasCropAreaLimitErrors}
+            disabled={!isDirty}
             loading={isSaving}
           >
             {isSaving ? 'Gemmer...' : 'Gem grænser'}

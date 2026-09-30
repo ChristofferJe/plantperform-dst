@@ -10,7 +10,7 @@ import {
   useRotationCandidateOptions,
   useRotationCategories,
   useSimulationFieldCandidateDetail,
-  useUdlaegKoder,
+  useUndersownCropCodes,
 } from '@/api/hooks'
 import { applyFieldRotation, previewFieldRotation } from '@/api/mutations'
 import { useOptimizationRunActions } from '@/api/optimization-runs'
@@ -80,6 +80,10 @@ const chipClassName = (selected: boolean) =>
 const AMBER_PILL_CLASSES =
   'rounded-full border border-amber-200 bg-amber-50 text-amber-800'
 
+const NO_UNDERSOWN_CROP_KEY = 'none'
+
+const MAIZE_CATCH_CROP_CODES = new Set([953, 954])
+
 export const ManualRotationEditor = ({
   farmId,
   simulationId,
@@ -120,10 +124,17 @@ export const ManualRotationEditor = ({
     mutate: retryCropCodes,
   } = useCropCodes(farmId)
   const isLoadingCandidates =
-    isLoadingCurrent || isLoadingCategories || isLoadingAllRefs || isLoadingCropCodes
-  const candidatesError = currentError ?? categoriesError ?? allRefsError ?? cropCodesError
+    isLoadingCurrent ||
+    isLoadingCategories ||
+    isLoadingAllRefs ||
+    isLoadingCropCodes
+  const candidatesError =
+    currentError ?? categoriesError ?? allRefsError ?? cropCodesError
   const isRetryingCandidates =
-    isValidatingCurrent || isValidatingCategories || isValidatingAllRefs || isValidatingCropCodes
+    isValidatingCurrent ||
+    isValidatingCategories ||
+    isValidatingAllRefs ||
+    isValidatingCropCodes
   const retryCandidates = () => {
     if (currentError) void retryCurrent()
     if (categoriesError) void retryCategories()
@@ -329,7 +340,7 @@ export const ManualRotationEditor = ({
     })
   }
 
-  const setUdlaegOverride = (
+  const setUndersownCropOverride = (
     position: number,
     cropCode: number,
     undersownCropCode: number | null,
@@ -337,7 +348,13 @@ export const ManualRotationEditor = ({
   ) => {
     setOverrides((prev) => [
       ...prev.filter((o) => o.position !== position),
-      { position, cropCode, undersownCropCode, undersownCropName, udlaegSet: true },
+      {
+        position,
+        cropCode,
+        undersownCropCode,
+        undersownCropName,
+        undersownCropSet: true,
+      },
     ])
   }
 
@@ -411,38 +428,53 @@ export const ManualRotationEditor = ({
   const activeYear =
     activeYearIndex !== null ? years[activeYearIndex] : undefined
 
-  const { data: udlaegKoder } = useUdlaegKoder(
+  const { data: undersownCropCodes } = useUndersownCropCodes(
     farmId,
     activeYear?.year.cropCode,
     simulation.fertiliser.farmingSystem,
   )
-  const NO_UDLAEG_KEY = 'none'
-  const udlaegPickerItems = useMemo(
+  const undersownCropPickerItems = useMemo(
     () => [
-      { key: NO_UDLAEG_KEY, label: 'Intet udlæg', title: 'Intet udlæg', colors: [] },
-      ...(udlaegKoder ?? []).map((a) => ({
-        key: String(a.code),
-        label: a.name,
-        title: a.name,
-        colors: [cropGroupColor(a.code, a.name)],
+      {
+        key: NO_UNDERSOWN_CROP_KEY,
+        label: 'Intet udlæg',
+        title: 'Intet udlæg',
+        colors: [],
+      },
+      ...(undersownCropCodes ?? []).map((option) => ({
+        key: String(option.code),
+        label: option.name,
+        title: option.name,
+        colors: [cropGroupColor(option.code, option.name)],
       })),
     ],
-    [udlaegKoder],
+    [undersownCropCodes],
   )
 
-  // PUMR, Tabel A, felt A32: hvis 953/954 var valgt som efterafgrøde-type
-  // og hovedafgrøden ændres til noget der ikke længere gør dem gyldige
-  // (majs-status/Grund6Procent), skal det tomme sig selv igen i stedet for
-  // at blive stående som et ugyldigt valg.
-  useEffect(() => {
-    if (activeYearIndex === null || !activeYear || !udlaegKoder) return
-    const currentUdlaeg = activeYear.year.undersownCropCode
-    if (currentUdlaeg !== 953 && currentUdlaeg !== 954) return
-    if (udlaegKoder.some((option) => option.code === currentUdlaeg)) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUdlaegOverride(activeYearIndex, activeYear.year.cropCode, null, null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeYearIndex, activeYear?.year.cropCode, activeYear?.year.undersownCropCode, udlaegKoder])
+  const activeUndersownCropCode = activeYear?.year.undersownCropCode ?? null
+  const maizeCatchCropNoLongerValid =
+    activeYearIndex !== null &&
+    activeYear !== undefined &&
+    undersownCropCodes !== undefined &&
+    activeUndersownCropCode !== null &&
+    MAIZE_CATCH_CROP_CODES.has(activeUndersownCropCode) &&
+    !undersownCropCodes.some(
+      (option) => option.code === activeUndersownCropCode,
+    ) &&
+    !overrides.some(
+      (override) =>
+        override.position === activeYearIndex &&
+        override.undersownCropSet === true &&
+        override.undersownCropCode === null,
+    )
+  if (maizeCatchCropNoLongerValid) {
+    setUndersownCropOverride(
+      activeYearIndex,
+      activeYear.year.cropCode,
+      null,
+      null,
+    )
+  }
 
   const rotationLength = years.length
   const startYearOffset =
@@ -801,20 +833,26 @@ export const ManualRotationEditor = ({
                               Sekundær afgrøde (udlæg)
                             </Label>
                             <SearchableCropPickerList
-                              key={`udlaeg-${activeYearIndex}`}
-                              items={udlaegPickerItems}
+                              key={`undersown-crop-${activeYearIndex}`}
+                              items={undersownCropPickerItems}
                               selectedKey={
                                 activeYear.year.undersownCropCode !== null
                                   ? String(activeYear.year.undersownCropCode)
-                                  : NO_UDLAEG_KEY
+                                  : NO_UNDERSOWN_CROP_KEY
                               }
                               onSelect={(key) => {
-                                const item = udlaegPickerItems.find((i) => i.key === key)
-                                setUdlaegOverride(
+                                const item = undersownCropPickerItems.find(
+                                  (i) => i.key === key,
+                                )
+                                setUndersownCropOverride(
                                   activeYearIndex,
                                   activeYear.year.cropCode,
-                                  key === NO_UDLAEG_KEY ? null : Number(key),
-                                  key === NO_UDLAEG_KEY ? null : (item?.label ?? null),
+                                  key === NO_UNDERSOWN_CROP_KEY
+                                    ? null
+                                    : Number(key),
+                                  key === NO_UNDERSOWN_CROP_KEY
+                                    ? null
+                                    : (item?.label ?? null),
                                 )
                               }}
                               searchLabel="Søg sekundær afgrøde"

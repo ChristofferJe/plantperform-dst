@@ -343,18 +343,18 @@ export const cropCodesKey = (farmId?: string) => {
 export const useCropCodes = (farmId?: string) =>
   useSWR<CropCodeOption[]>(cropCodesKey(farmId), fetcher)
 
-export const udlaegKoderKey = (
+export const undersownCropCodesKey = (
   farmId?: string,
-  hovedafgrodeKode?: number,
-  driftsform?: string,
+  cropCode?: number,
+  farmingSystem?: string,
 ) => {
   if (!farmId) return null
 
   const params = new URLSearchParams()
-  if (hovedafgrodeKode !== undefined) {
-    params.set('hovedafgrode_kode', String(hovedafgrodeKode))
+  if (cropCode !== undefined) {
+    params.set('hovedafgrode_kode', String(cropCode))
   }
-  if (driftsform !== undefined) params.set('driftsform', driftsform)
+  if (farmingSystem !== undefined) params.set('driftsform', farmingSystem)
   const query = params.toString()
 
   return (
@@ -363,17 +363,21 @@ export const udlaegKoderKey = (
   )
 }
 
-export const useUdlaegKoder = (
+export const useUndersownCropCodes = (
   farmId?: string,
-  hovedafgrodeKode?: number,
-  driftsform?: string,
-) => useSWR<CropCodeOption[]>(udlaegKoderKey(farmId, hovedafgrodeKode, driftsform), fetcher)
+  cropCode?: number,
+  farmingSystem?: string,
+) =>
+  useSWR<CropCodeOption[]>(
+    undersownCropCodesKey(farmId, cropCode, farmingSystem),
+    fetcher,
+  )
 
 export const preloadRotationCandidateCatalog = (farmId: string) => {
   void preload(rotationCategoriesKey(farmId), fetcher)
   void preload(rotationCandidatesKey(farmId), fetcher)
   void preload(cropCodesKey(farmId), fetcher)
-  void preload(udlaegKoderKey(farmId), fetcher)
+  void preload(undersownCropCodesKey(farmId), fetcher)
 }
 
 export const fertiliserPresetsKey = (farmId?: string) => {

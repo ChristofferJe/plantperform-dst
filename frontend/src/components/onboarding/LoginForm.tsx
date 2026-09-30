@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 
 import { ApiError, postJson } from '@/api/client'
 import { useAuth } from '@/auth/context'
@@ -110,6 +111,11 @@ export const LoginForm = ({
         ) : null}
         <Button size="lg" className="w-full" loading={isSubmitting}>
           {isSubmitting ? 'Logger ind...' : 'Log ind'}
+        </Button>
+        <Button asChild variant="ghost" className="w-full">
+          <Link to="/forgot-password" state={{ email: fields.normalizedEmail }}>
+            Glemt adgangskode?
+          </Link>
         </Button>
       </div>
     </form>

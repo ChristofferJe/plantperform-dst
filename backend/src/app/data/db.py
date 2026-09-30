@@ -378,6 +378,18 @@ email_verification_token_table = Table(
     Index("ix_email_verification_token_email", "email"),
 )
 
+password_reset_token_table = Table(
+    "password_reset_token",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("email", Text, ForeignKey("app_user.email", ondelete="CASCADE"), nullable=False),
+    Column("token_hash", Text, nullable=False, unique=True),
+    Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("used_at", DateTime(timezone=True), nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False, server_default=func.now()),
+    Index("ix_password_reset_token_email", "email"),
+)
+
 refresh_session_table = Table(
     "auth_refresh_session",
     metadata,

@@ -4,7 +4,7 @@ const EMAIL_MAX_LENGTH = 320
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const EMAIL_VERIFICATION_REQUIRED = 'Email verification required'
 
-export type PasswordPurpose = 'login' | 'register'
+export type PasswordPurpose = 'login' | 'register' | 'reset'
 
 export type LoginFailure = 'unverified' | 'credentials' | 'unavailable'
 
@@ -47,5 +47,17 @@ export const validatePassword = (
   if (value.length < PASSWORD_MIN_LENGTH) {
     return `Adgangskoden skal være mindst ${PASSWORD_MIN_LENGTH} tegn.`
   }
+  if (value.length > 1024) {
+    return 'Adgangskoden må højst være 1024 tegn.'
+  }
+  return null
+}
+
+export const validatePasswordConfirmation = (
+  password: string,
+  confirmation: string,
+): string | null => {
+  if (!confirmation) return 'Gentag din nye adgangskode.'
+  if (password !== confirmation) return 'Adgangskoderne er ikke ens.'
   return null
 }

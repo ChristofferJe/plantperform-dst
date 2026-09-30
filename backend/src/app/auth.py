@@ -13,7 +13,7 @@ import boto3
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from botocore.exceptions import BotoCoreError, ClientError
+from botocore.exceptions import ClientError
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import delete, select, update
@@ -23,6 +23,7 @@ from app.data.db import (
     SessionLocal,
     app_user_table,
     email_verification_token_table,
+    password_reset_token_table,
     refresh_session_table,
 )
 
@@ -30,6 +31,8 @@ PASSWORD_MIN_LENGTH = 6
 ACCESS_TOKEN_TTL = timedelta(minutes=15)
 REFRESH_TOKEN_TTL = timedelta(days=30)
 VERIFICATION_TOKEN_TTL = timedelta(hours=24)
+PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
+PASSWORD_RESET_RESEND_COOLDOWN = timedelta(minutes=1)
 REFRESH_COOKIE_NAME = "dst_refresh_token"
 PASSWORD_HASHER = PasswordHasher(
     time_cost=3,
@@ -53,6 +56,10 @@ class UnverifiedAccountError(Exception):
 
 
 class InvalidVerificationTokenError(Exception):
+    pass
+
+
+class InvalidPasswordResetTokenError(Exception):
     pass
 
 
@@ -113,7 +120,7 @@ def _config(require_mail: bool = False) -> AuthConfig:
 
     ses_from_email = os.getenv("SES_FROM_EMAIL", "")
     if require_mail and app_env not in {"development", "test"} and not ses_from_email:
-        raise RuntimeError("SES_FROM_EMAIL must be configured for email verification")
+        raise RuntimeError("SES_FROM_EMAIL must be configured for authentication emails")
 
     return AuthConfig(
         jwt_secret=jwt_secret,
@@ -140,7 +147,7 @@ def _token_hash(token: str, pepper: str) -> str:
     return hmac.new(pepper.encode(), token.encode(), hashlib.sha256).hexdigest()
 
 
-def _verification_hash(token: str) -> str:
+def _email_token_hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
@@ -197,11 +204,10 @@ def _issue_token_pair(email: str) -> TokenPair:
     )
 
 
-def _send_verification_email(email: str, token: str) -> None:
+def _send_auth_email(email: str, subject: str, body: str, purpose: str) -> None:
     config = _config(require_mail=True)
-    verification_link = f"{config.public_app_url}/verify-email?token={token}"
     if config.app_env in {"development", "test"}:
-        LOGGER.warning("Email verification link for %s: %s", email, verification_link)
+        LOGGER.warning("%s email for %s:\n%s", purpose, email, body)
         return
 
     try:
@@ -210,37 +216,46 @@ def _send_verification_email(email: str, token: str) -> None:
             Destination={"ToAddresses": [email]},
             Content={
                 "Simple": {
-                    "Subject": {
-                        "Data": "Verify your PlantPerform account",
-                        "Charset": "UTF-8",
-                    },
-                    "Body": {
-                        "Text": {
-                            "Data": (
-                                "Verify your PlantPerform account by opening this link:\n\n"
-                                f"{verification_link}\n\n"
-                                "This link expires in 24 hours and can only be used once."
-                            ),
-                            "Charset": "UTF-8",
-                        }
-                    },
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {"Text": {"Data": body, "Charset": "UTF-8"}},
                 }
             },
         )
     except ClientError as error:
         error_code = error.response.get("Error", {}).get("Code", "unknown")
-        LOGGER.error("SES verification email delivery failed (code=%s)", error_code)
-        raise RuntimeError("Verification email delivery failed") from error
-    except BotoCoreError as error:
-        LOGGER.error(
-            "SES verification email delivery failed (error_type=%s)", type(error).__name__
-        )
-        raise RuntimeError("Verification email delivery failed") from error
+        LOGGER.error("SES %s email delivery failed (code=%s)", purpose.lower(), error_code)
+        raise RuntimeError(f"{purpose} email delivery failed") from error
     except Exception as error:
         LOGGER.error(
-            "SES verification email delivery failed (error_type=%s)", type(error).__name__
+            "SES %s email delivery failed (error_type=%s)", purpose.lower(), type(error).__name__
         )
-        raise RuntimeError("Verification email delivery failed") from error
+        raise RuntimeError(f"{purpose} email delivery failed") from error
+
+
+def _send_verification_email(email: str, token: str) -> None:
+    verification_link = f"{_config().public_app_url}/verify-email?token={token}"
+    _send_auth_email(
+        email,
+        "Verify your PlantPerform account",
+        "Verify your PlantPerform account by opening this link:\n\n"
+        f"{verification_link}\n\n"
+        "This link expires in 24 hours and can only be used once.",
+        "Verification",
+    )
+
+
+def _send_password_reset_email(email: str, token: str) -> None:
+    # A fragment keeps the secret out of HTTP request logs and Referer headers.
+    reset_link = f"{_config().public_app_url}/reset-password#token={token}"
+    _send_auth_email(
+        email,
+        "Nulstil din adgangskode til PlantPerform",
+        "Vælg en ny adgangskode til PlantPerform ved at åbne dette link:\n\n"
+        f"{reset_link}\n\n"
+        "Linket udløber om 1 time og kan kun bruges én gang.\n"
+        "Hvis du ikke har bedt om en ny adgangskode, kan du se bort fra denne mail.",
+        "Password reset",
+    )
 
 
 def _create_verification_token(session: Session, email: str) -> str:
@@ -255,7 +270,7 @@ def _create_verification_token(session: Session, email: str) -> str:
         email_verification_token_table.insert().values(
             id=str(uuid4()),
             email=email,
-            token_hash=_verification_hash(raw_token),
+            token_hash=_email_token_hash(raw_token),
             expires_at=datetime.now(UTC) + VERIFICATION_TOKEN_TTL,
         )
     )
@@ -314,7 +329,7 @@ def verify_email(token: str) -> None:
                 email_verification_token_table.c.expires_at,
                 email_verification_token_table.c.used_at,
             )
-            .where(email_verification_token_table.c.token_hash == _verification_hash(token))
+            .where(email_verification_token_table.c.token_hash == _email_token_hash(token))
             .with_for_update()
         ).first()
         if row is None or row.used_at is not None or row.expires_at <= now:
@@ -328,6 +343,94 @@ def verify_email(token: str) -> None:
             update(app_user_table)
             .where(app_user_table.c.email == row.email)
             .values(verified_at=now, updated_at=now)
+        )
+
+
+def request_password_reset(email: str) -> None:
+    _config(require_mail=True)
+    email = normalize_email(email)
+    now = datetime.now(UTC)
+    with SessionLocal.begin() as session:
+        # Serialize issuance and consumption for this account.
+        user = session.execute(
+            select(app_user_table.c.email).where(app_user_table.c.email == email).with_for_update()
+        ).first()
+        if user is None:
+            return
+        recent_token = session.execute(
+            select(password_reset_token_table.c.id).where(
+                password_reset_token_table.c.email == email,
+                password_reset_token_table.c.created_at > now - PASSWORD_RESET_RESEND_COOLDOWN,
+            )
+        ).first()
+        if recent_token is not None:
+            return
+        session.execute(
+            delete(password_reset_token_table).where(password_reset_token_table.c.email == email)
+        )
+        raw_token = secrets.token_urlsafe(32)
+        session.execute(
+            password_reset_token_table.insert().values(
+                id=str(uuid4()),
+                email=email,
+                token_hash=_email_token_hash(raw_token),
+                expires_at=now + PASSWORD_RESET_TOKEN_TTL,
+                created_at=now,
+            )
+        )
+        # Roll back if delivery fails, preserving any previous working link.
+        _send_password_reset_email(email, raw_token)
+
+
+def reset_password(token: str, password: str) -> None:
+    token_hash = _email_token_hash(token)
+    now = datetime.now(UTC)
+    with SessionLocal.begin() as session:
+        email = session.execute(
+            select(password_reset_token_table.c.email).where(
+                password_reset_token_table.c.token_hash == token_hash,
+                password_reset_token_table.c.used_at.is_(None),
+                password_reset_token_table.c.expires_at > now,
+            )
+        ).scalar_one_or_none()
+        if email is None:
+            raise InvalidPasswordResetTokenError
+        session.execute(
+            select(app_user_table.c.email).where(app_user_table.c.email == email).with_for_update()
+        ).first()
+        # Recheck after taking the account lock; concurrent submissions cannot both succeed.
+        consumed = session.execute(
+            update(password_reset_token_table)
+            .where(
+                password_reset_token_table.c.token_hash == token_hash,
+                password_reset_token_table.c.used_at.is_(None),
+                password_reset_token_table.c.expires_at > datetime.now(UTC),
+            )
+            .values(used_at=now)
+            .returning(password_reset_token_table.c.id)
+        ).scalar_one_or_none()
+        if consumed is None:
+            raise InvalidPasswordResetTokenError
+        session.execute(
+            update(app_user_table)
+            .where(app_user_table.c.email == email)
+            .values(password_hash=hash_password(password), updated_at=now)
+        )
+        session.execute(
+            update(password_reset_token_table)
+            .where(
+                password_reset_token_table.c.email == email,
+                password_reset_token_table.c.used_at.is_(None),
+            )
+            .values(used_at=now)
+        )
+        session.execute(
+            update(refresh_session_table)
+            .where(
+                refresh_session_table.c.email == email,
+                refresh_session_table.c.revoked_at.is_(None),
+            )
+            .values(revoked_at=now)
         )
 
 

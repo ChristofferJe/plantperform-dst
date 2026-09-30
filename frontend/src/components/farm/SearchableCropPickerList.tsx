@@ -42,11 +42,15 @@ export const SearchableCropPickerList = ({
     useState(query)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
   const selectedLabel = items.find((item) => item.key === selectedKey)?.label
-  const displayedPlaceholder = query ? searchPlaceholder : (selectedLabel ?? searchPlaceholder)
+  const displayedPlaceholder = query
+    ? searchPlaceholder
+    : (selectedLabel ?? searchPlaceholder)
 
   useEffect(() => {
     if (!query) {
-      itemRefs.current[initialSelectedIndex]?.scrollIntoView({ block: 'center' })
+      itemRefs.current[initialSelectedIndex]?.scrollIntoView({
+        block: 'center',
+      })
     }
   }, [initialSelectedIndex, items, query, selectedKey])
 

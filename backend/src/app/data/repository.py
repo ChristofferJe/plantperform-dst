@@ -26,7 +26,6 @@ from app.domain.field import (
 )
 from app.domain.rotation_candidate import (
     RotationCandidateEvaluation,
-    RotationCandidateRef,
     RotationCandidateYearResult,
     SimulationFieldCandidates,
 )
@@ -701,12 +700,17 @@ def list_scenario_afgrodekoder(
     (db/leaching breakdown included) needs to be loaded just to read off one
     integer per position.
 
-    A permanent-afgrøde auto-lock (repository.create_simulation,
-    is_permanent_afgrode) is the one exception: its synthetic
-    "permanent:<afgrode_kode>:100" ref never comes from the sædskifte
-    library, so it would otherwise be missing here. Every mark's own
-    rotation_id/allowed_rotation_ids is still cheap - simulation_field, not
-    simulation_field_candidates - so those are scanned too.
+    This is the data source for "Fravælg en afgrøde" in Optimér's exclusion
+    list (api/v0/simulations.py's /afgroder-i-brug), which excludes every
+    sædskifte containing the chosen afgrøde - see
+    optimization.orchestrator._exclude_afgrodekoder. A permanent-afgrøde
+    auto-lock's synthetic "permanent:<afgrode_kode>:100" candidate
+    deliberately never appears here even though it never comes from the
+    sædskifte library either: that afgrøde isn't in any sædskifte to
+    exclude, the mark it belongs to is never a decision variable in the
+    first place (orchestrator._build_options/_locked_field_contribution),
+    and listing it only invited deselecting a checkbox that could never do
+    anything.
     """
     with SessionLocal() as session:
         simulation = _get_simulation(session, farm_id, simulation_id, email)
@@ -723,15 +727,6 @@ def list_scenario_afgrodekoder(
                 for afgrode_kode, _, _ in raw_rotation[:active_len]
                 if afgrode_kode is not None
             )
-
-    for field in list_simulation_fields(farm_id, simulation_id, email) or []:
-        rotation_ids = set(field.allowed_rotation_ids)
-        if field.rotation_id:
-            rotation_ids.add(field.rotation_id)
-        for rotation_id in rotation_ids:
-            ref = RotationCandidateRef.from_id(rotation_id)
-            if ref.saedskiftevariant == "permanent":
-                codes.add(int(ref.variant))
 
     return codes
 

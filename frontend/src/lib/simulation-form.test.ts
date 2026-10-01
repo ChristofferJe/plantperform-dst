@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import type {
   FarmingSystem,
+  FertiliserPresetOption,
   RotationCategoryOption,
+  Simulation,
 } from '@/api/types'
 import {
   catchCropSowingLabel,
@@ -19,6 +21,7 @@ import {
   selectedRotations,
   simulationFormSchema,
   SIMULATION_FORM_STEPS,
+  simulationToFormValues,
   toCreateSimulationInput,
   type SimulationFormValues,
 } from '@/lib/simulation-form'
@@ -394,6 +397,73 @@ describe('toCreateSimulationInput', () => {
         catchCropSowingDate: '3/9',
       }).catchCropSowingDate,
     ).toBe('3/9')
+  })
+})
+
+describe('simulationToFormValues', () => {
+  const kvaeggylle: FertiliserPresetOption = {
+    name: 'Kvæggylle',
+    fertiliser: {
+      farmingSystem: 'Konventionel',
+      orgMineralN: 30,
+      mineralSharePct: 50,
+      onlyOrganic: false,
+      nContentKgPerTon: 5,
+    },
+  }
+  const simulation: Simulation = {
+    id: 'sim-1',
+    farmId: 'farm-1',
+    name: 'Test2',
+    createdAt: '2026-09-30T10:00:00Z',
+    constraints: {} as Simulation['constraints'],
+    rotationVariants: ['10', '20'],
+    nNormPercentages: ['95', '85'],
+    fertiliser: kvaeggylle.fertiliser,
+    catchCropSowingDate: '28/8',
+    catchCropDailyBasis: false,
+    precisionFarming: true,
+    earlySowing: false,
+    intermediateCrop: true,
+  }
+
+  it('fills the form so the copy gets the same grundlag', () => {
+    const values = simulationToFormValues(simulation, [kvaeggylle])
+    expect(values.fertiliserChoice).toBe('Kvæggylle')
+    expect(toCreateSimulationInput(values)).toEqual({
+      name: 'Test2 (kopi)',
+      allowedRotationVariants: ['10', '20'],
+      allowedNNormPercentages: ['95', '85'],
+      fertiliser: kvaeggylle.fertiliser,
+      catchCropSowingDate: '28/8',
+      catchCropDailyBasis: false,
+      precisionFarming: true,
+      earlySowing: false,
+      intermediateCrop: true,
+    })
+  })
+
+  it('reads the fertiliser type from its numbers', () => {
+    const withFertiliser = (orgMineralN: number, mineralSharePct: number) =>
+      simulationToFormValues(
+        {
+          ...simulation,
+          fertiliser: { ...simulation.fertiliser, orgMineralN, mineralSharePct },
+        },
+        [kvaeggylle],
+      ).fertiliserChoice
+    expect(withFertiliser(0, 100)).toBe(NO_FERTILISER)
+    expect(withFertiliser(30, 50)).toBe('Kvæggylle')
+    expect(withFertiliser(31, 50)).toBe(CUSTOM_FERTILISER)
+  })
+
+  it('keeps a sowing date on the daily basis', () => {
+    const values = simulationToFormValues(
+      { ...simulation, catchCropDailyBasis: true, catchCropSowingDate: '3/9' },
+      [kvaeggylle],
+    )
+    expect(values.catchCropSowingDate).toBe('3/9')
+    expect(toCreateSimulationInput(values).catchCropSowingDate).toBe('3/9')
   })
 })
 

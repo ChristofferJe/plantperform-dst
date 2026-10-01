@@ -122,7 +122,7 @@ The crop group icons in the frontend
 these sets. The paths are used as they are; the app only sets colour and size.
 
 - [Game Icons](https://game-icons.net) by Delapouite (flax, potato, beet,
-  high grass, grass, oak leaf) and Lorc (daisy), licensed
+  high grass, grass, oak leaf, round straw bale) and Lorc (daisy), licensed
   [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
 - [Emoji One (Monotone)](https://github.com/EmojiTwo/emojitwo) (sheaf of rice,
   ear of corn), licensed

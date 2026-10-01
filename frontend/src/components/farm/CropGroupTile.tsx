@@ -10,7 +10,7 @@ import {
   OakLeaf,
   PeaPod,
   Potato,
-  RoundBale,
+  RoundStrawBale,
   SheafOfRice,
   WheatOutline,
 } from '@/components/farm/crop-icons'
@@ -33,7 +33,7 @@ const ICONS: Record<CropGroup, ComponentType<{ className?: string }>> = {
   potato: Potato,
   beet: Beet,
   seedGrass: HighGrass,
-  helsaed: RoundBale,
+  wholeCropSilage: RoundStrawBale,
   grass: Grass,
   fallow: Daisy,
   other: OakLeaf,

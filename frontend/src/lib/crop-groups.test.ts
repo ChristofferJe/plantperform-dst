@@ -34,4 +34,34 @@ describe('classifyCrop', () => {
     expect(classifyCrop(582, 'Pyntegrønt, økologisk jordbrug')).toBe('other')
     expect(classifyCrop(907, 'Naturarealer, økologisk jordbrug')).toBe('fallow')
   })
+
+  it('puts cereals and grønkorn harvested whole under Helsæd', () => {
+    expect(classifyCrop(210, 'Vårbyg, helsæd')).toBe('wholeCropSilage')
+    expect(classifyCrop(222, 'Vinterrug, helsæd')).toBe('wholeCropSilage')
+    expect(classifyCrop(230, 'Blanding af vårkorn, grønkorn')).toBe(
+      'wholeCropSilage',
+    )
+  })
+
+  it('keeps majshelsæd under Majs', () => {
+    expect(classifyCrop(216, 'Majshelsæd')).toBe('maize')
+    expect(classifyCrop(218, 'Majshelsæd med græsudlæg')).toBe('maize')
+  })
+
+  it('takes fodder roots and nature grass out of Græs', () => {
+    expect(classifyCrop(280, 'Fodersukkerroer')).toBe('beet')
+    expect(classifyCrop(254, 'Miljøtilsagn, græs (0 N), permanent')).toBe(
+      'fallow',
+    )
+    expect(classifyCrop(263, 'Græs uden kløvergræs (omdrift)')).toBe('grass')
+  })
+
+  it('puts every bræmme control code under Brak og natur', () => {
+    expect(classifyCrop(988, 'Intern kode: Bræmme, permanent græs')).toBe(
+      'fallow',
+    )
+    expect(classifyCrop(992, 'Intern kode: Bræmme, sommerslåning')).toBe(
+      'fallow',
+    )
+  })
 })

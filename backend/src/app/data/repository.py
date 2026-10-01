@@ -613,7 +613,17 @@ def create_simulation(
                     candidates.append(permanent_candidate)
                     locked_id = permanent_candidate.ref.to_id()
                     copied_field = copied_field.model_copy(
-                        update={"rotation_id": locked_id, "allowed_rotation_ids": [locked_id]},
+                        update={
+                            "rotation_id": locked_id,
+                            "allowed_rotation_ids": [locked_id],
+                            # Without this, crop_rotation keeps whatever "Tilføj
+                            # marker" seeded it with - the mark's actual 2019-2026
+                            # history (see evaluate_real_history_for_field above) -
+                            # instead of the forward-looking locked afgrøde. The two
+                            # only coincidentally match when the history happens to
+                            # already be a flat repeat of the 2026 afgrøde.
+                            "crop_rotation": [y.year for y in permanent_candidate.years],
+                        },
                     )
 
             session.execute(

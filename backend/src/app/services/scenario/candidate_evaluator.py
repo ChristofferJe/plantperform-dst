@@ -253,7 +253,7 @@ def evaluate_sequence_for_mark(
         this_code = afgrode_seq[i]
         next_code = afgrode_seq[(i + 1) % active_len]
         prev_code, f1, m1, g1 = lookback(i, 1)
-        _, f2, m2, g2 = lookback(i, 2)
+        prev2_code, f2, m2, g2 = lookback(i, 2)
         udl_code = udlaeg_seq[i]
 
         f0 = (
@@ -267,6 +267,7 @@ def evaluate_sequence_for_mark(
                 afgrode_kode=this_code,
                 next_afgrode_kode=next_code,
                 prev_afgrode_kode=prev_code,
+                prev_prev_afgrode_kode=prev2_code,
                 udlaeg_kode=udl_code,
                 prev_udlaeg_kode=prev_udlaeg_for(i),
                 jbnr=jbnr,

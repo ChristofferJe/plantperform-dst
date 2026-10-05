@@ -13,14 +13,20 @@ category). WP is the winter cover between the forfrugt and the current
 afgrøde: the forfrugt's sekundær afgrøde, an autumn-sown current afgrøde, an
 overwintering forfrugt, or else bare soil (see _resolve_wp).
 
-M, W and MP all shift when the forfrugt was a langvarig afgrøde (græs,
-kløvergræs, frøgræs or brak - see _LANGVARIG_FORFRUGT_KODER): M overrides to an
-afgrøde-specific category (M10/M11/M12, see _FORFRUGT_M_OVERRIDE and
-_resolve_m), W overrides the vintersæd group (W1) to W7 (see
-_FORFRUGT_W_OVERRIDE and _resolve_w), MP overrides to the fixed MP4 but only
-for the 161 afgrøder in _MP4_BERETTIGET_KODER, not universally (see
-_resolve_mp). Source: Afgrøde beslutningstræ_pr_11_06_27.xlsx, ark M/W/MP,
-cross-checked against PUMR 2027 kravspec, Tabel A.
+M, W and MP all shift around a langvarig afgrøde (græs, kløvergræs, frøgræs or
+brak - see _LANGVARIG_FORFRUGT_KODER), but in three different years:
+- M shifts the year AFTER it, when the forfrugt was langvarig: the afgrøde gets
+  an afgrøde-specific category (M10/M11/M12, see _FORFRUGT_M_OVERRIDE and
+  _resolve_m).
+- W shifts the langvarig year itself, decided by what is sown after it: W7
+  before vintersæd (_W7_VINTERPLANTEDAEKKE_KODER) and otherwise W follows the
+  next year's M including its override, so W8 before spring crops and majs
+  (see _resolve_w).
+- MP shifts two years after it, when the FORFORFRUGT was langvarig: the fixed
+  MP4, but only for the 161 forfrugt-afgrøder in _MP4_BERETTIGET_KODER (see
+  _resolve_mp).
+Source: Afgrøde beslutningstræ_pr_11_06_27.xlsx, ark M/W/MP, and PUMR 2027
+kravspec, Tabel A, felt A59-A61 (docs/nles5-kategorier.md).
 
 Two further additive corrections are applied directly in
 evaluate_leaching_position rather than via a _resolve_* helper, since neither
@@ -108,15 +114,14 @@ _MP4_BERETTIGET_KODER: frozenset[int] = frozenset({
     702, 703, 704, 705, 706, 707, 708, 709, 710, 711,
 })
 
-# This afgrødekode's own W -> the W to use instead when the forfrugt is one of
-# _LANGVARIG_FORFRUGT_KODER (Afgrøde beslutningstræ_pr_11_06_27.xlsx, ark W,
-# columns "W"/"Efter græs, brak og frøgræs"). Unlike M, only the vintersæd
-# group (baseline W1) has a real override, always to W7 - every other afgrøde
-# in the sheet has the same value in both columns, i.e. no actual override.
-_FORFRUGT_W_OVERRIDE: dict[int, int] = {
-    9: 7, 10: 7, 11: 7, 13: 7, 14: 7, 15: 7, 16: 7, 17: 7, 57: 7,
-    70: 7, 71: 7, 72: 7, 220: 7, 221: 7, 222: 7, 223: 7, 224: 7,
-}
+# Vinterplantedække (the afgrøde sown in autumn) that makes W7 the fixed W of a
+# græs/kløvergræs/frøgræs/brak position (PUMR 2027 kravspec, Tabel A, felt A60,
+# step 1; docs/nles5-kategorier.md). W belongs to the winter after the position,
+# so it is the græs year - where the græs is ploughed and the vintersæd sown -
+# that gets W7, decided by the NEXT position's afgrøde.
+_W7_VINTERPLANTEDAEKKE_KODER: frozenset[int] = frozenset({
+    9, 10, 11, 13, 14, 15, 16, 17, 57, 70, 71, 72, 220, 221, 222, 223, 224,
+})
 
 # Fmajs (see engine.py's majs_m11_korrektionsfaktor) only applies when the
 # CURRENT afgrøde is one of these six maize codes AND the forfrugt is one of
@@ -225,16 +230,29 @@ _PRAECISIONSJORDBRUG_EPJ = 0.04
 def _resolve_w(
     afgrode_kode: int,
     this_params: dict,
+    next_afgrode_kode: int | None,
     next_params: dict,
     udlaeg_kode: int | None,
-    prev_afgrode_kode: int | None,
 ) -> int:
+    """Resolve W, the winter cover after this position's afgrøde.
+
+    What is sown in autumn is the NEXT position's afgrøde, so W follows next
+    year's M - the M it actually gets, i.e. including the græs override (this
+    afgrøde is next year's forfrugt). A græs/brak position followed by
+    vintersæd is therefore W7, and one followed by spring crops or majs W8
+    (the "ploughed late" categories behind _NEXT_M_TO_W's 10-12).
+    """
     auto_w = this_params.get("W")
-    if prev_afgrode_kode in _LANGVARIG_FORFRUGT_KODER:
-        forfrugt_override = _FORFRUGT_W_OVERRIDE.get(afgrode_kode)
-        if forfrugt_override is not None:
-            auto_w = forfrugt_override
-    next_m = next_params.get("M") if next_params else None
+    if (
+        afgrode_kode in _LANGVARIG_FORFRUGT_KODER
+        and next_afgrode_kode in _W7_VINTERPLANTEDAEKKE_KODER
+    ):
+        return 7
+    next_m = (
+        _resolve_m(next_afgrode_kode, next_params, afgrode_kode)
+        if next_afgrode_kode is not None and next_params
+        else None
+    )
     next_w_from_m = _NEXT_M_TO_W.get(next_m) if next_m is not None else None
     has_lookup_w = auto_w is not None
     udl_w = _UDL_W_MAPPING.get(udlaeg_kode) if udlaeg_kode is not None else None
@@ -265,16 +283,25 @@ def _resolve_m(afgrode_kode: int, this_params: dict, prev_afgrode_kode: int | No
     return this_params.get("M") or 1
 
 
-def _resolve_mp(afgrode_kode: int, prev_params: dict, prev_afgrode_kode: int | None) -> int:
-    """Resolve MP, overridden to MP4 when the forfrugt's own forfrugt-equivalent applies.
+def _resolve_mp(
+    prev_params: dict,
+    prev_afgrode_kode: int | None,
+    prev_prev_afgrode_kode: int | None,
+) -> int:
+    """Resolve MP, the forfrugt effect, overridden to MP4 after a langvarig afgrøde.
 
-    Bilag 2, table MP: this position's MP is normally the forfrugt's own static
-    MP category, but becomes MP4 (fixed, no per-afgrøde variant) when the
-    forfrugt was græs, kløvergræs, frøgræs or brak AND the CURRENT afgrøde is
-    one of the 161 codes eligible for the override (_MP4_BERETTIGET_KODER) -
-    not every afgrøde, even though the fixed target value never varies.
+    PUMR 2027 kravspec, Tabel A, felt A61: this position's MP is normally the
+    forfrugt's own static MP category. It becomes MP4 (fixed, no per-afgrøde
+    variant) when the FORFORFRUGT was græs, kløvergræs, frøgræs or brak AND the
+    forfrugt is one of the 161 codes eligible for the override
+    (_MP4_BERETTIGET_KODER). Unlike M, the trigger therefore looks two years
+    back: græs -> vinterhvede -> vårbyg gives the vinterhvede MP3 (græs) and
+    the vårbyg MP4.
     """
-    if afgrode_kode in _MP4_BERETTIGET_KODER and prev_afgrode_kode in _LANGVARIG_FORFRUGT_KODER:
+    if (
+        prev_afgrode_kode in _MP4_BERETTIGET_KODER
+        and prev_prev_afgrode_kode in _LANGVARIG_FORFRUGT_KODER
+    ):
         return 4
     return prev_params.get("MP") or 1
 
@@ -351,6 +378,7 @@ def evaluate_leaching_position(
     afgrode_kode: int,
     next_afgrode_kode: int | None,
     prev_afgrode_kode: int | None,
+    prev_prev_afgrode_kode: int | None,
     udlaeg_kode: int | None,
     prev_udlaeg_kode: int | None,
     jbnr: int,
@@ -380,9 +408,9 @@ def evaluate_leaching_position(
 
     m = _resolve_m(afgrode_kode, this_params, prev_afgrode_kode)
     wc = this_params.get("WC") or 1
-    mp = _resolve_mp(afgrode_kode, prev_params, prev_afgrode_kode)
+    mp = _resolve_mp(prev_params, prev_afgrode_kode, prev_prev_afgrode_kode)
     wp = _resolve_wp(prev_afgrode_kode, prev_params, this_params, prev_udlaeg_kode)
-    w = _resolve_w(afgrode_kode, this_params, next_params, udlaeg_kode, prev_afgrode_kode)
+    w = _resolve_w(afgrode_kode, this_params, next_afgrode_kode, next_params, udlaeg_kode)
 
     # §24(7-9): N-fixing efterafgrøde (kvælstoffikserende renbestand/udlæg)
     # adds a flat 35 kg N/ha bonus, folded into F0 before the beta_f0 weighting

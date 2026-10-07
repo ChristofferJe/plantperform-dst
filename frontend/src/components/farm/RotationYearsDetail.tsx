@@ -218,12 +218,14 @@ const KeyMetricsSection = ({
   calendarYear,
   areaHa,
   retention,
+  hideNNormLevel,
   footer,
 }: {
   year: RotationCandidateYearResult
   calendarYear: number
   areaHa: number
   retention: number | null
+  hideNNormLevel: boolean
   footer?: React.ReactNode
 }) => {
   const [showMineralSplit, setShowMineralSplit] = useState(false)
@@ -293,7 +295,7 @@ const KeyMetricsSection = ({
             term="nNorm"
             value={cropNorm !== null ? `${fmt(cropNorm, 0)} kg N/ha` : '-'}
           />
-          {cropNorm !== null ? (
+          {cropNorm !== null && !hideNNormLevel ? (
             <DefinitionRow
               label="N-norm%"
               term="nNormLevel"
@@ -1090,6 +1092,7 @@ type RotationYearsDetailProps = {
   selectedYearIndex?: number
   onSelectedYearIndexChange?: (index: number) => void
   hideYearSelector?: boolean
+  hideNNormLevel?: boolean
   startCalendarYear?: number
 }
 
@@ -1100,6 +1103,7 @@ export const RotationYearsDetail = ({
   selectedYearIndex,
   onSelectedYearIndexChange,
   hideYearSelector = false,
+  hideNNormLevel = false,
   startCalendarYear = ROTATION_START_CALENDAR_YEAR,
 }: RotationYearsDetailProps) => {
   const [internalSelectedYear, setInternalSelectedYear] = useState(0)
@@ -1175,6 +1179,7 @@ export const RotationYearsDetail = ({
         calendarYear={startCalendarYear + yearIndex}
         areaHa={areaHa}
         retention={retention}
+        hideNNormLevel={hideNNormLevel}
         footer={
           <button
             type="button"
